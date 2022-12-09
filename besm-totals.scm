@@ -14,42 +14,60 @@
 (import (loop))
 (import (srfi 13))
 
-(define num-width 4)
-
 (define infile "FV2021-Coleopteran.dat")
+
+(define (bold s)
+  (cond
+   ((= 0 (string-length s)) s)
+   (*bolding* (fmt #f "**" s "**"))
+   (else s)))
 
 (define (sep c)
   (fmt #t (with-width *table-width*
                       (pad-char c
-                                (columnar "+" num-width (pad num-width (dsp ""))
-                                          "+" num-width (pad num-width (dsp ""))
-                                          "+" num-width (pad num-width (dsp ""))
+                                (columnar "+" *num-width* (pad *num-width* (dsp ""))
+                                          "+" *num-width* (pad *num-width* (dsp ""))
+                                          "+" *num-width* (pad *num-width* (dsp ""))
                                           "+" (pad (- *table-width* 1
-                                                      num-width 1
-                                                      num-width 1
-                                                      num-width 1
+                                                      *num-width* 1
+                                                      *num-width* 1
+                                                      *num-width* 1
                                                       1 1)
                                                    (dsp ""))
                                           "+")))))
 
+(define (sep c)
+  (fmt #t (pad-char c
+                    "+" (pad *num-width* "")
+                    "+" (pad *num-width* "")
+                    "+" (pad *num-width* "")
+                    "+" (pad (- *table-width* 1
+                                *num-width* 1
+                                *num-width* 1
+                                *num-width* 1
+                                1)
+                             (dsp ""))
+                    "+"
+                    nl)))
+
 (define (header lvl eff cst attribute)
   (fmt #t (with-width *table-width*
-                      (columnar "|" num-width (dsp lvl)
-                                "|" num-width (dsp eff)
-                                "|" num-width (dsp cst)
+                      (columnar "|" *num-width* (dsp lvl)
+                                "|" *num-width* (dsp eff)
+                                "|" *num-width* (dsp cst)
                                 "|" (wrap-lines attribute)
                                 "|"))))
 
 (define (row lvl eff cst attribute)
   (fmt #t (with-width *table-width*
-                      (columnar "|" num-width (if lvl (num lvl) (dsp ""))
-                                "|" num-width (if eff (num eff) (dsp ""))
-                                "|" num-width (num cst)
+                      (columnar "|" *num-width* (if lvl (num lvl) (dsp ""))
+                                "|" *num-width* (if eff (num eff) (dsp ""))
+                                "|" *num-width* (num cst)
                                 "|" (wrap-lines attribute)
                                 "|"))))
 
 (define (empty)
-  (fmt #t (dsp "|") (pad (- *table-width* 2) (dsp "")) (dsp "|")))
+  (fmt #t (dsp "|") "  " (pad (- *table-width* 4) (dsp "")) (dsp "|") nl))
 
 (define (rl)
   (let ((line (read-line)))
@@ -99,65 +117,79 @@
   (let* ((title (rl))
          (_ (rl))
          (attributes (translate-lines (split-lines (process-section))))
-         (attribute-cost (sum-costs attributes))
-         (defects (translate-lines (split-lines (process-section))))
-         (defects-cost (sum-costs defects)))
-    (dbg (fmt (current-error-port) "process-file: title: " title nl))
-    (fmt #t title nl)
-    (fmt #t (make-string (string-length title) *underline*) nl)
-    (unless (null? attributes)
-      (sep #\-)
-      (header "Lvl" "Eff" "Cst" "Attribute")
-      (sep #\=)
-      (loop for att in attributes
-            do (begin
-                 (apply row att)
-                 (sep #\-)))
-      (row #f #f attribute-cost "**Attribute Total**")
-      (sep #\-))
-    (fmt #t nl)
-    (unless (null? defects)
-      (sep #\-)
-      (header "Rnk" "" "Cst" "Defect")
-      (sep #\=)
-      (loop for def in defects
-            do (begin
-                 (apply row def)
-                 (sep #\-)))
-      (row #f #f defects-cost "**Defect Total**")
-      (sep #\-))))
-
-(define (process-file-only-one)
-  (let* ((attributes (translate-lines (split-lines (process-section))))
          (attributes-cost (sum-costs attributes))
          (defects (translate-lines (split-lines (process-section))))
          (defects-cost (sum-costs defects))
          (total-cost (+ attributes-cost defects-cost)))
-    ;; (fmt #t "attributes: " attributes nl "defects: " defects nl)
+    (dbg (fmt (current-error-port) "process-file: title: " title nl))
+    (fmt #t title nl)
+    (fmt #t (make-string (string-length title) *underline*) nl)
+    (fmt #t nl)
     (unless (null? attributes)
       (sep #\-)
-      (header "Lvl" "Eff" "Cst" "Attribute")
+      (header (bold "Lvl") (bold "Eff") (bold "Cst") (bold "Attribute"))
       (sep #\=)
       (loop for att in attributes
             do (begin
                  (apply row att)
                  (sep #\-)))
-      (row #f #f attributes-cost "**Attribute Total**")
+      (row #f #f attributes-cost (bold "Attribute Total"))
       (sep #\-))
+    (fmt #t nl)
     (unless (null? defects)
-      (empty)
       (sep #\-)
-      (header "Rnk" "" "Cst" "Defect")
+      (header (bold "Rnk") "" (bold "Cst") (bold "Defect"))
       (sep #\=)
       (loop for def in defects
             do (begin
                  (apply row def)
                  (sep #\-)))
-      (row #f #f defects-cost "**Defect Total**")
+      (row #f #f defects-cost (bold "Defect Total"))
+      (sep #\-))
+    (unless (and (null? attributes) (null? defects))
+      (fmt #t nl)
+      (sep #\-)
+      (row #f #f total-cost (bold "Total"))
+      (sep #\-))))
+
+(define (process-file-only-one)
+  (let* ((title (rl))
+         (_ (rl))
+         (attributes (translate-lines (split-lines (process-section))))
+         (attributes-cost (sum-costs attributes))
+         (defects (translate-lines (split-lines (process-section))))
+         (defects-cost (sum-costs defects))
+         (total-cost (+ attributes-cost defects-cost)))
+    (dbg (fmt (current-error-port) "process-file-only-one: title: " title nl))
+    (fmt #t title nl)
+    (fmt #t (make-string (string-length title) *underline*) nl)
+    (fmt #t nl)
+    (unless (null? attributes)
+      (sep #\-)
+      (header (bold "Lvl") (bold "Eff") (bold "Cst") (bold "Attribute"))
+      (sep #\=)
+      (loop for att in attributes
+            do (begin
+                 (apply row att)
+                 (sep #\-)))
+      (row #f #f attributes-cost (bold "Attribute Total"))
+      (sep #\-))
+    (unless (null? defects)
+      (empty)
+      (sep #\-)
+      (header (bold "Rnk") "" (bold "Cst") (bold "Defect"))
+      (sep #\=)
+      (loop for def in defects
+            do (begin
+                 (apply row def)
+                 (sep #\-)))
+      (row #f #f defects-cost (bold "Defect Total"))
       (sep #\-))
     (unless (and (null? attributes) (null? defects))
       (empty)
-      (row #f #f total-cost "**Total**"))
+      (sep #\-)
+      (row #f #f total-cost (bold "Total"))
+      (sep #\-))
     ))
 
 (define (process-filename filename)
@@ -174,6 +206,8 @@
       (fmt #t "Current argv: " (argv) nl)))
   (exit 1))
 
+(define *bolding* #f)
+(define *num-width* 3)
 (define *debugging* #f)
 (define *table-width* 60)
 (define *only-one* #f)
@@ -181,10 +215,14 @@
 
 (define opts
   (list (args:make-option
+         (b bold) #:none "Turn on bolding of headers."
+         (set! *bolding* #t)
+         (set! *num-width* 7))
+        (args:make-option
          (d debug) #:none "Turn on debugging."
          (set! *debugging* #t))
         (args:make-option
-         (o one) #:none "Use only one table."
+         (O one) #:none "Use only one table."
          (set! *only-one* #t))
         (args:make-option
          (u underline) #:required "Set character to use for underlining the header."
