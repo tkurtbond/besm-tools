@@ -1,0 +1,72 @@
+---
+- name: Android Battle Maid
+  page: 37
+  size: "Rank 0: Medium"
+  stats:
+    - name: Body
+      value: 2
+      points: 4
+  attributes:
+    - name: Armour
+      details: AR 15
+      level: 3
+      points: 6
+    - name: Attack Mastery
+      level: 1
+      points: 1
+    - name: Data Access
+      level: 2
+      points: 4
+    - name: Defence Mastery
+      level: 1
+      points: 1
+    - name: Features
+      level: 1
+      points: 1
+      details: "Appearance: Cute; Internal Computer"
+    - name: Heightened Senses
+      level: 3
+      points: 3
+      details: Hearing, Smell, Vision
+    - name: Jumping
+      level: 2
+      points: 2
+      details: 10 * Body metres
+    - name: "Power Flux: Skill Flux"
+      level: 1
+      effecttive: 2
+      points: 10
+      details: "Equipment: Programmes +1"
+    - name: Resilient
+      level: 10
+      effective: 5
+      points: 20
+      details: "Aging, Airbourne Toxins, Disease, Lack of Air, Poisons; All Complete -5"
+    - name: Skill Group (Domestic)
+      level: 3
+      points: 3
+    - name: Superspeed
+      level: 1
+      points: 3
+      details: 100 kph
+    - name: Superstrength
+      level: 1
+      points: 4
+      details: Lift 250 kg (a motorcycle)
+    - name: Tough
+      level: 5
+      points: 5
+      details: Health Points increase by 10
+  defects:
+    - name: Ism
+      rank: 1
+      points: -2
+      details: Android
+    - name: Marked
+      rank: 1
+      points: -1
+      details: Production mark in embarrasing spot
+    - name: Obligated
+      rank: 2
+      points: -4
+      details: Purchaser

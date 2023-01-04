@@ -1,35 +1,56 @@
 ifndef CSC
-CSC=csc
+CSC=$(shell type -p csc || type -p chicken-csc || echo 'echo "CSC does not exist; "')
 endif
 
-BINDIR=$(HOME)/local/bin
+BROPTS=
 
-INSTALL_PROGRAMS=besm-totals
+# besm-totals is retired.
+INSTALL_PROGRAMS=besm-rst
 OTHER_PROGRAMS=
 PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
+TESTDATA=$(wildcard test-data/*.yaml)
+TESTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .gen.rst,$(basename $(f) .yaml)))
+STMTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml)))
+LETTEROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .ms.pdf,$(basename $(f) .yaml)))
+MSOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms,$(basename $(f) .yaml)))
+NATIVEOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .native,$(basename $(f) .yaml)))
+HTMLOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .html,$(basename $(f) .yaml)))
 
 all: build $(PROGRAMS)
 
-test: $(PROGRAMS) \
-	build/FV2021-Coleopteran.gen.rst build/FV2021-Coleopteran.stmt.ms.pdf
+$(wildcard build/*.gen.rst): build/besm-rst
 
-native: $(PROGRAMS) \
-	build/FV2021-Coleopteran.native
+test:	build/besm-rst \
+	$(TESTOUTPUT)
 
-ms: $(PROGRAMS) \
-	build/FV2021-Coleopteran.stmt.ms
+stmt:	test $(STMTOUTPUT)
+
+letter: test $(LETTEROUTPUT)
+
+native: test $(NATIVEOUTPUT)
+
+ms: test $(MSOUTPUT)
+
+html: test $(HTMLOUTPUT)
 
 clean:
 	-rm -v $(PROGRAMS) build/*.gen.rst build/*.stmt.ms.pdf build/*.native \
-		build/*.stmt.ms
+		build/*.stmt.ms build/*.html
 
+BINDIR=$(HOME)/local/bin
 install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
 
 
-# .INTERMEDIATE: $(wildcard build/*.gen.rst)
+#??? .INTERMEDIATE: $(wildcard build/*.gen.rst)
 
-build/%.gen.rst : test-data/%.dat
-	build/besm-totals $(BTOPTS) $< >$@
+#build/%.gen.rst : test-data/%.dat
+#	build/besm-rst $(BROPTS) $< >$@
+
+build/%.gen.rst : test-data/%.yaml
+	build/besm-rst $(BROPTS) $< >$@
+
+build/%.ms.pdf : build/%.gen.rst
+	pandoc -r rst -w ms --template=tkb -V twocol -o $@ $<
 
 build/%.stmt.ms.pdf : build/%.gen.rst
 	pandoc -r rst -w ms --template=statement \
@@ -42,6 +63,9 @@ build/%.stmt.ms : build/%.gen.rst
 
 build/%.native : build/%.gen.rst
 	pandoc -r rst -w native -o $@ $<
+
+build/%.html : build/%.gen.rst
+	pandoc -s -r rst -w html -o $@ $<
 
 build:
 	mkdir build

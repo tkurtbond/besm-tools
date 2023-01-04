@@ -1,0 +1,80 @@
+---
+- name: Cabbit - Battle
+  page: 230
+  size: "Rank -2: Tiny (30 cm)"
+  stats:
+    - name: Body
+      value: 7
+      points: 14
+    - name: Mind
+      value: 3
+      points: 6
+    - name: Soul
+      value: 6
+      points: 12
+  derived:
+    - name: Attack Combat Value
+      value: 5
+      alternatives:
+        - Ranged 9
+    - name: Defence Combat Value
+      value: 6
+      alternatives:
+        - Ranged 9
+    - name: Health Points
+      value: 65
+    - name: Energy Points
+      value: 45
+    - name: Damage Multiplier
+      value: 5
+  attributes:
+    - name: Features
+      level: 1
+      points: 1
+      details: Low-light Vision
+    - name: Heightened Senses
+      level: 2
+      points: 2
+      details: "Hearing, Smell"
+    - name: Jumping
+      level: 1
+      points: 1
+      details: 3 × Body Stat
+    - name: Ranged Attack
+      level: 2
+      points: 2
+      details: All
+    - name: Ranged Defence
+      level: 2
+      points: 2
+      details: All
+    - name: Special Movement
+      level: 1
+      points: 1
+      details: Fast
+    - name: Unique Attribute
+      level: 2
+      points: 4
+      details: "Small, Light, and Unobtrusive"
+    - name: "Weapon: Sonic Meow"
+      level: 5
+      effective: 1
+      points: 10
+      details: "Drain: Soul -1; Penetrating -1; Range -1; Spreading -1"
+  defects:
+    - name: Easily Distracted
+      rank: 1
+      points: -1
+      details: Sadness
+    - name: Unique Defect
+      rank: 2
+      points: -4
+      details: -20 Strength Damage
+    - name: Unique Defect
+      rank: 2
+      points: -12
+      details: Lifting Capacity divided by 25
+    - name: Unique Defect
+      rank: 2
+      points: -8
+      details: Suffers 20 Extra Damage from all Attacks

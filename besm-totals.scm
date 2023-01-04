@@ -14,7 +14,15 @@
 (import (loop))
 (import (srfi 13))
 
-(define infile "FV2021-Coleopteran.dat")
+(define-syntax dbg
+  (syntax-rules ()
+    ((_ e1 e2 ...)
+     (when *debugging*
+       e1 e2 ...
+       (flush-output (current-error-port))))))
+
+(define (dfmt . args)
+  (apply fmt (cons (current-error-port) args)))
 
 (define (bold s)
   (cond
@@ -58,13 +66,28 @@
                                 "|" (wrap-lines attribute)
                                 "|"))))
 
-(define (row lvl eff cst attribute)
+(define (row i lvl eff cst attribute . details)
+  (dbg (dfmt "details: " (pretty details)))
   (fmt #t (with-width *table-width*
                       (columnar "|" *num-width* (if lvl (num lvl) (dsp ""))
                                 "|" *num-width* (if eff (num eff) (dsp ""))
                                 "|" *num-width* (num cst)
-                                "|" (wrap-lines attribute)
+                                "|" (wrap-lines
+                                     attribute
+                                     (if (and (not (null? details))
+                                              (not (zero? (string-length (car details)))))
+                                         (string-append ".  " (car details) ".  ")
+                                         ""))
                                 "|"))))
+
+(define (row-terse i lvl eff cst attribute . details)
+  (fmt #t (if (> i 1) ", " "")
+       attribute " – " (num lvl) (if eff (fmt #f "(" (num eff) ")") "")
+       " (" (if (and (not (null? details))
+                     (not (zero? (string-length (car details)))))
+                (string-append (car details) ".  ")
+                "")
+       (num cst) " CP)"))
 
 (define (empty)
   (fmt #t (dsp "|") "  " (pad (- *table-width* 4) (dsp "")) (dsp "|") nl))
@@ -81,39 +104,40 @@
              (lines '()))
     (fmt #f "line: " line)
     (cond
-     ((or (eof-object? line) (= (string-length line) 0))
+     ((or (eof-object? line) (zero? (string-length line)))
       (reverse lines))
      (else
       (loop (rl) (cons line lines))))))
 
 (define (split-lines lines)
+  (dbg (dfmt "split-lines: lines: " (pretty lines) nl))
   (loop for line in lines
+        for i from 1
+        do (dbg (dfmt "i: " (num i) " line: " line nl))
         collect (string-split line "|" #t)))
 
 (define (num-or-false s)
   (string->number (string-trim-both s)))
 
-(define-syntax dbg
-  (syntax-rules ()
-    ((_ e1 e2 ...)
-     (when *debugging*
-       e1 e2 ...
-       (flush-output (current-error-port))))))
-
 (define (translate-lines lines)
+  (dbg (dfmt "translate-lines: lines: " (pretty lines) nl))
   (loop for line in lines
-        collect (bind (lvl eff cst text) line
-                  (dbg (fmt (current-error-port) "translate-lines: line: "
+        collect (bind (lvl eff cst att . details) line
+                  (dbg (dfmt "translate-lines: line: "
                        line nl))
                   (list (num-or-false lvl)
                         (num-or-false eff)
                         (num-or-false cst)
-                        (string-trim-both text)))))
+                        (string-trim-both att)
+                        (if (null? details)
+                            ""
+                            (string-trim-both (car details)))))))
 
 (define (sum-costs attributes)
   (loop for att in attributes sum (caddr att)))
         
 (define (process-file)
+  (dbg (dfmt "process-file entered" nl))
   (let* ((title (rl))
          (_ (rl))
          (attributes (translate-lines (split-lines (process-section))))
@@ -121,38 +145,43 @@
          (defects (translate-lines (split-lines (process-section))))
          (defects-cost (sum-costs defects))
          (total-cost (+ attributes-cost defects-cost)))
-    (dbg (fmt (current-error-port) "process-file: title: " title nl))
+    (dbg (dfmt "process-file: title: " title nl))
     (fmt #t title nl)
     (fmt #t (make-string (string-length title) *underline*) nl)
     (fmt #t nl)
     (unless (null? attributes)
+      (dbg (dfmt "process-file: attributes" nl))
       (sep #\-)
       (header (bold "Lvl") (bold "Eff") (bold "Cst") (bold "Attribute"))
       (sep #\=)
       (loop for att in attributes
+            for i from 1
             do (begin
-                 (apply row att)
+                 (apply row (cons i att))
                  (sep #\-)))
-      (row #f #f attributes-cost (bold "Attribute Total"))
+      (row 1 #f #f attributes-cost (bold "Attribute Total"))
       (sep #\-))
     (fmt #t nl)
     (unless (null? defects)
+      (dbg (dfmt "process-file: defects" nl))
       (sep #\-)
       (header (bold "Rnk") "" (bold "Cst") (bold "Defect"))
       (sep #\=)
       (loop for def in defects
+            for i from 1 
             do (begin
-                 (apply row def)
+                 (apply row (cons i def))
                  (sep #\-)))
-      (row #f #f defects-cost (bold "Defect Total"))
+      (row 1 #f #f defects-cost (bold "Defect Total"))
       (sep #\-))
     (unless (and (null? attributes) (null? defects))
       (fmt #t nl)
       (sep #\-)
-      (row #f #f total-cost (bold "Total"))
+      (row 1 #f #f total-cost (bold "Total"))
       (sep #\-))))
 
-(define (process-file-only-one)
+(define (process-file-terse)
+  (dbg (dfmt "process-file-terse entered" nl))
   (let* ((title (rl))
          (_ (rl))
          (attributes (translate-lines (split-lines (process-section))))
@@ -160,7 +189,39 @@
          (defects (translate-lines (split-lines (process-section))))
          (defects-cost (sum-costs defects))
          (total-cost (+ attributes-cost defects-cost)))
-    (dbg (fmt (current-error-port) "process-file-only-one: title: " title nl))
+    (dbg (dfmt "process-file-terse: title: " title nl))
+    (fmt #t title nl)
+    (fmt #t (make-string (string-length title) *underline*) nl)
+    (fmt #t nl)
+    (unless (null? attributes)
+      (dbg (dfmt "process-file: attributes" nl))
+      (fmt #t (bold "Attributes") " (" (num attributes-cost) ") – ")
+      (loop for att in attributes
+            for i from 1
+            do (apply row-terse (cons i att)))
+      (fmt #t nl))
+    (unless (null? defects)
+      (dbg (dfmt "process-file: defects" nl))
+      (fmt #t nl)
+      (fmt #t (bold "Defects") " (" (num defects-cost) ") – ")
+      (loop for def in defects
+            for i from 1 
+            do (apply row-terse (cons i def)))
+      (fmt #t nl))
+    (unless (and (null? attributes) (null? defects))
+      (fmt #t nl)
+      (fmt #t (bold "Total Cost:") " " (num total-cost) nl))))
+
+(define (process-file-only-one)
+  (dbg (dfmt "process-file-terse-only-one entered" nl))
+  (let* ((title (rl))
+         (_ (rl))
+         (attributes (translate-lines (split-lines (process-section))))
+         (attributes-cost (sum-costs attributes))
+         (defects (translate-lines (split-lines (process-section))))
+         (defects-cost (sum-costs defects))
+         (total-cost (+ attributes-cost defects-cost)))
+    (dbg (dfmt "process-file-only-one: title: " title nl))
     (fmt #t title nl)
     (fmt #t (make-string (string-length title) *underline*) nl)
     (fmt #t nl)
@@ -169,10 +230,11 @@
       (header (bold "Lvl") (bold "Eff") (bold "Cst") (bold "Attribute"))
       (sep #\=)
       (loop for att in attributes
+            for i from 1
             do (begin
-                 (apply row att)
+                 (apply row (cons i att))
                  (sep #\-)))
-      (row #f #f attributes-cost (bold "Attribute Total"))
+      (row 1 #f #f attributes-cost (bold "Attribute Total"))
       (sep #\-))
     (unless (null? defects)
       (empty)
@@ -180,22 +242,21 @@
       (header (bold "Rnk") "" (bold "Cst") (bold "Defect"))
       (sep #\=)
       (loop for def in defects
+            for i from 1
             do (begin
-                 (apply row def)
+                 (apply row (cons i def))
                  (sep #\-)))
-      (row #f #f defects-cost (bold "Defect Total"))
+      (row 1 #f #f defects-cost (bold "Defect Total"))
       (sep #\-))
     (unless (and (null? attributes) (null? defects))
       (empty)
       (sep #\-)
-      (row #f #f total-cost (bold "Total"))
+      (row 1 #f #f total-cost (bold "Total"))
       (sep #\-))
     ))
 
 (define (process-filename filename)
-  (with-input-from-file filename (if *only-one*
-                                     process-file-only-one
-                                     process-file)))
+  (with-input-from-file filename *output-formatter*))
 
 (define (usage)
   (with-output-to-port (current-error-port)
@@ -210,7 +271,7 @@
 (define *num-width* 3)
 (define *debugging* #f)
 (define *table-width* 60)
-(define *only-one* #f)
+(define *output-formatter* process-file)
 (define *underline* #\-)
 
 (define opts
@@ -222,8 +283,15 @@
          (d debug) #:none "Turn on debugging."
          (set! *debugging* #t))
         (args:make-option
-         (O one) #:none "Use only one table."
-         (set! *only-one* #t))
+         (h help) #:none "Display this text."
+         (usage))
+        (args:make-option
+         (|1| one) #:none "Use only one table."
+         (dbg (dfmt "one only" nl))
+         (set! *output-formatter* process-file-only-one))
+        (args:make-option
+         (t terse) #:none "Use terse output."
+         (set! *output-formatter* process-file-terse))
         (args:make-option
          (u underline) #:required "Set character to use for underlining the header."
          (set! *underline* (string-ref arg 0)))        (args:make-option
@@ -232,9 +300,8 @@
          (set! *table-width* (string->number arg)))))
 
 (receive (options operands) (args:parse (command-line-arguments) opts)
+  (dbg (dfmt "main *output-formatter*: " (pretty *output-formatter*) nl))
   (if  (= 0 (length operands))
-       (with-input-from-port (current-input-port) (if *only-one*
-                                                      process-file-only-one
-                                                      process-file))
+       (with-input-from-port (current-input-port) *output-formatter*)
        (loop for filename in operands do (process-filename filename))))
 )
