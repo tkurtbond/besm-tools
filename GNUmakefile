@@ -8,6 +8,7 @@ BROPTS=
 INSTALL_PROGRAMS=besm-rst
 OTHER_PROGRAMS=
 PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
+
 TESTDATA=$(wildcard test-data/*.yaml)
 TESTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .gen.rst,$(basename $(f) .yaml)))
 STMTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml)))
@@ -15,6 +16,7 @@ LETTEROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .ms.pdf,$(basen
 MSOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms,$(basename $(f) .yaml)))
 NATIVEOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .native,$(basename $(f) .yaml)))
 HTMLOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .html,$(basename $(f) .yaml)))
+YAMLERROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .yamlerr,$(basename $(f) .yaml)))
 
 all: build $(PROGRAMS)
 
@@ -33,9 +35,11 @@ ms: test $(MSOUTPUT)
 
 html: test $(HTMLOUTPUT)
 
+yamlerr: $(YAMLERROUTPUT)
+
 clean:
 	-rm -v $(PROGRAMS) build/*.gen.rst build/*.stmt.ms.pdf build/*.native \
-		build/*.stmt.ms build/*.html
+		build/*.stmt.ms build/*.html build/*.yamlerr
 
 BINDIR=$(HOME)/local/bin
 install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
@@ -48,6 +52,9 @@ install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
 
 build/%.gen.rst : test-data/%.yaml
 	build/besm-rst $(BROPTS) $< >$@
+
+build/%.yamlerr : test-data/%.yaml
+	yamllint -f parsable  $< | tee $@
 
 build/%.ms.pdf : build/%.gen.rst
 	pandoc -r rst -w ms --template=tkb -V twocol -o $@ $<
