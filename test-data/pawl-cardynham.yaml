@@ -1,0 +1,70 @@
+---
+- name: Sergeant “Big” Pawl Cardynham
+  tagline: Big, bigger, biggest.  And brawny.
+  stats:                        # Average: (/ (+ 11 5 5) 3.0) 7.0
+    - name: Body
+      value: 11
+      points: 22
+    - name: Mind
+      value: 5
+      points: 10
+    - name: Soul
+      value: 5
+      points: 10
+  derived:
+    - name: ACV
+      value: 9
+    - name: DCV
+      value: 9
+    - name: DM
+      value: 5
+    - name: HP
+      value: 80
+    - name: EP
+      value: 50
+    - name: SV
+      value: 16
+  attributes:
+    - name: Attack Mastery
+      level: 2
+      points: 2
+    - name: Defence Mastery
+      level: 2
+      points: 2
+    - name: Extra Actions
+      level: 1
+      points: 4
+      details: +1 Extra Action
+    - name: "Item: FV2021 Coleopteran"
+      points: 35
+    - name: Melee Attack
+      level: 1
+      points: 1
+      details: Unarmed; +2 to DCV
+    - name: Melee Defence
+      level: 1
+      points: 1
+      details: Unarmed; +2 to DCV
+    - name: Skills
+      level: 2
+      points: 2
+      details: 20 Skill Points
+  skills:
+    - name: Domestic Arts
+      level: 4
+      points: 4
+      specialisations:
+        - Cooking
+    - name: Intimidation
+      level: 2
+      points: 4
+    - name: Police Sciences
+      level: 4
+      points: 4
+    - name: Sports
+      level: 4
+      points: 8
+      specialisations:
+        - Soccer
+      
+      

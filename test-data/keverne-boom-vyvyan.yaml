@@ -1,0 +1,60 @@
+---
+- name: Sergeant Keverne “Boom” Vyvyan
+  tagline: Hear that boom?  Music to my ears!
+  stats:                        # Average: (/ (+ 7 7 7) 3.0) 7.0
+    - name: Body
+      value: 7
+      points: 14
+    - name: Mind
+      value: 7
+      points: 14
+    - name: Soul
+      value: 7
+      points: 14
+  derived:
+    - name: ACV
+      value: 9
+    - name: DCV
+      value: 9
+    - name: DM
+      value: 5
+    - name: HP
+      value: 70
+    - name: EP
+      value: 70
+    - name: SV
+      value: 14
+  attributes:
+    - name: Attack Mastery
+      level: 2
+      points: 2
+    - name: Defence Mastery
+      level: 2
+      points: 2
+    - name: Extra Actions
+      level: 1
+      points: 4
+      details: +1 Extra Action
+    - name: "Item: FV2021 Coleopteran"
+      points: 35
+    - name: Skills
+      level: 2
+      points: 2
+      details: 20 Skill Points
+  skills:
+    - name: Architecture
+      level: 2
+      points: 4
+    - name: Demolitions
+      level: 4
+      points: 4
+    - name: Electronics
+      level: 2
+      points: 4
+    - name: Engineering
+      level: 2
+      points: 4
+    - name: Stealth
+      level: 2
+      points: 4
+      

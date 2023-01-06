@@ -19,6 +19,9 @@
 ;;; - Items (like the Hazmat Suit, p. 212) probably should definitely
 ;;;   be enterable as templates.
 ;;; - Derived Values are in a section with the mapping key "derived".
+;;; - TODO: Undecided as to whether the attributes, defects, and
+;;;   skills should be sorted by the program.
+;;; - Specialisations are a list.
 
 (module besm-rst ()
 
@@ -99,6 +102,7 @@
 
 (define (headsep2)
   (separator-line 2 #\+ *head-sep*))
+
 (define (sep2)
   (separator-line 2 #\+ #\-))
 
@@ -112,6 +116,7 @@
                                 "|"))))
 (define (headsep3)
   (separator-line 3 #\+ *head-sep*))
+
 (define (sep3)
   (separator-line 3 #\+ #\-))
 
@@ -133,10 +138,20 @@
     (row3 value points name)
     points))
 
+(define derived-abbreviations
+  '(("ACV" . "Attack Combat Value")
+    ("DCV" . "Defence Combat Value")
+    ("DM"  . "Damage Multiplier")
+    ("HP"  . "Health Points")
+    ("EP"  . "Energy Points")
+    ("SV"  . "Shock Value")))
+
 (define (process-derived derived)
   (dbg (dfmt "process-derived: " (pretty derived)))
   ;; There are no points.
   (let* ((name          (must-exist "name" derived))
+         (expansion     (may-exist name derived-abbreviations))
+         (name          (if expansion expansion name))
          (value         (must-exist "value" derived))
          (alternatives  (may-exist "alternatives" derived))
          (description   (if alternatives
@@ -183,12 +198,12 @@
   (dbg (dfmt "process-attribute: " (pretty attribute)))
   ;; returns the cost of the attribute
   (let* ((name        (must-exist "name" attribute))
-         (level       (must-exist "level" attribute))
+         (level       (may-exist "level" attribute))
+         (level       (if level level ""))
          (points      (must-exist "points" attribute))
          (details     (may-exist  "details" attribute))
          (effective   (may-exist  "effective" attribute))
          (level       (if effective (fmt #f level "(" effective ")") level))
-         ;; TODO: enhancers and limiters
          (enhancers   (may-exist  "enhancers" attribute))
          (limiters    (may-exist  "limiters" attribute))
          (details     (make-attribute-details details enhancers limiters))
@@ -198,7 +213,7 @@
 
 (define (process-defect defect)
   (dbg (dfmt "process-defect: " (pretty defect)))
-  ;; returns the cost of the defect
+  ;; Returns the cost of the defect
   (let* ((name        (must-exist "name" defect))
          (rank        (must-exist "rank" defect))
          (points      (must-exist "points" defect))
@@ -210,12 +225,30 @@
     (dbg (dfmt "process-defect: after row3" nl))
     points))
 
+(define (process-skill skill)
+  (dbg (dfmt "process-skill: " (pretty skill)))
+  ;; Returns the cost of the skill.
+  (let* ((name            (must-exist "name" skill))
+         (level           (must-exist "level" skill))
+         (points          (must-exist "points" skill))
+         (specialisations (may-exist "specialisations" skill))
+         (description     (fmt #f name (if specialisations
+                                           (string-append
+                                            " ("
+                                            (string-join specialisations ", ")
+                                            ")")
+                                           ""))))
+    (row3 level points description)
+    points))
+
+
 (define (process-entity entity)
   (dbg (dfmt "process-entity: " (pretty entity)))
   ;; It might be a template, an item, or a full character.
   (let ((stats-total 0)
         (attributes-total 0)
         (defects-total 0)
+        (skills-total 0)                ; Not added to entity total!
         (entity-total 0))
 
     (when-in-alist (entity-name "name" entity)
@@ -279,6 +312,18 @@
       (cond (*one-table* (empty))
             (else (fmt #t nl))))
 
+    (when-in-alist (skills "skills" entity)
+      (sep3)
+      (row3 (table-bold "LEVEL") (table-bold "POINTS") (table-bold "SKILL"))
+      (headsep3)
+      (set! skills-total
+        (loop for skill in skills sum (process-skill skill) do (sep3)))
+      (row3 "" (table-bold (number->string skills-total))
+            (table-bold "SKILL POINTS TOTAL"))
+      (sep3)
+      (cond (*one-table* (empty))
+            (else (fmt #t nl))))
+
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
@@ -286,19 +331,166 @@
     (sep3)
     ))
 
+(define (total-points items)
+  (loop for item in items sum (must-exist "points" item)))
+
+(define (process-stat-terse stat)
+  (fmt #t (must-exist "name" stat) " " (must-exist "value" stat)
+       " (" (must-exist "points" stat) " CP)"))
+
+(define (process-derived-terse derived)
+  (dbg (dfmt "process-derived-terse: " (pretty derived)))
+  ;; There are no points.
+  (let* ((name          (must-exist "name" derived))
+         (value         (must-exist "value" derived))
+         (alternatives  (may-exist "alternatives" derived))
+         (alternatives  (if alternatives
+                            (string-append " ("
+                                           (string-join alternatives ", ")
+                                           ")")
+                            #f)))
+    (fmt #t name " " (dsp value) (if alternatives alternatives ""))))
+
+(define (process-attribute-terse attribute)
+  (dbg (dfmt "process-attribute-terse: " (pretty attribute)))
+  ;; returns the cost of the attribute
+  (let* ((name        (must-exist "name" attribute))
+         (level       (may-exist "level" attribute))
+         (level       (if level level ""))
+         (points      (must-exist "points" attribute))
+         (details     (may-exist  "details" attribute))
+         (effective   (may-exist  "effective" attribute))
+         (level       (if effective (fmt #f level "(" effective ")") level))
+         (enhancers   (may-exist  "enhancers" attribute))
+         (limiters    (may-exist  "limiters" attribute))
+         (details     (make-attribute-details details enhancers limiters)))
+    (fmt #t name " (" (if details (string-append details ". ") "")
+         (dsp points) " CP)")))
+
+(define (process-defect-terse defect)
+  (dbg (dfmt "process-defect-terse: " (pretty defect)))
+  ;; Returns the cost of the defect
+  (let* ((name        (must-exist "name" defect))
+         (rank        (must-exist "rank" defect))
+         (points      (must-exist "points" defect))
+         (details     (may-exist  "details" defect))
+         )
+    (fmt #t name " (" (if details (string-append details ".  ") "")
+         (dsp points) " CP)")))
+
+(define (process-skill-terse skill)
+  (dbg (dfmt "process-skill-terse: " (pretty skill)))
+  ;; Returns the cost of the skill.
+  (let* ((name            (must-exist "name" skill))
+         (level           (must-exist "level" skill))
+         (points          (must-exist "points" skill))
+         (specialisations (may-exist "specialisations" skill)))
+    (fmt #t name " (" (if specialisations
+                          (string-append
+                           (string-join specialisations ", ")
+                           ".  ")
+                          "")
+         (dsp points) " SP)")))
+
+(define (process-entity-terse entity)
+  (dbg (dfmt "process-entity-terse: " (pretty entity)))
+  ;; It might be a template, an item, or a full character.
+  (let* ((entity-name (may-exist "name" entity))
+         (tagline     (may-exist "tagline" entity))
+         (description (may-exist "description" entity))
+         (size        (may-exist "size" entity))
+         (stats       (may-exist "stats" entity))
+         (derived     (may-exist "derived" entity))
+         (attributes  (may-exist "attributes" entity))
+         (defects     (may-exist "defects" entity))
+         (skills      (may-exist "skills" entity))
+
+         (stats-total      (if stats (total-points stats) 0))
+         (attributes-total (if attributes (total-points attributes) 0))
+         (defects-total    (if defects (total-points defects) 0))
+         ;; Not added to entity total!
+         (skills-total     (if skills (total-points skills) 0))
+         (entity-total     (+ attributes-total defects-total))
+         )
+
+    (cond (entity-name
+           (let* ((entity-header (fmt #f entity-name " (" (dsp entity-total)
+                                     " CP)"))
+                  (underline (make-string (string-length entity-header)
+                                          *underliner*)))
+             (fmt #t entity-name nl underline nl nl)))
+          (else
+           (fmt #t (dsp entity-total) " CP" nl nl)))
+
+    (when tagline
+      (fmt #t (italicize (string-trim-both tagline)) nl nl))
+
+    (when description
+      (fmt #t description nl nl))
+    
+    (when size
+      (fmt #t (bold "Size:") " " size nl nl))
+
+    (when stats
+      (fmt #t (bold "Statistics"))
+      (when *show-subtotals*
+        (fmt #t " (" (dsp stats-total) " CP) "))
+      (fmt #t " — " nl)
+      (loop for stat in stats
+            for i from 1
+            when (> i 1) do (fmt #t ", ")
+            do (process-stat-terse stat))
+      (fmt #t nl nl))
+
+    (when derived
+      (fmt #t (bold "Derived Values") " — ")
+      (loop for d in derived
+            for i from 1
+            when (> i 1) do (fmt #t ", ")
+            do (process-derived-terse d))
+      (fmt #t nl nl))
+
+    (when attributes
+      (fmt #t (bold "Attributes"))
+      (when *show-subtotals*
+        (fmt #t " (" (dsp attributes-total) " CP) "))
+      (fmt #t " — " nl)
+      (loop for attribute in attributes
+            for i from 1
+            when (> i 1) do (fmt #t ", ")
+            do (process-attribute-terse attribute))
+      (fmt #t nl nl))
+
+    (when defects
+      (fmt #t (bold "Defects"))
+      (when *show-subtotals*
+        (fmt #t " (" (dsp defects-total) " CP) "))
+      (fmt #t " — " nl)
+      (loop for defect in defects
+            for i from 1
+            when (> i 1) do (fmt #t ", ")
+            do (process-defect-terse defect))
+      (fmt #t nl nl))
+
+    (when skills
+      (fmt #t (bold "Skills"))
+      (when *show-subtotals*
+        (fmt #t " (" (dsp skills-total) " SP) "))
+      (fmt #t " — " nl)
+      (loop for skill in skills
+            for i from 1
+            when (> i 1) do (fmt #t ", ")
+            do (process-skill-terse skill)))
+    ))
 
 (define (process-file)
   ;;; It is a file of possibly multiple entities.
   (let ((entities (yaml-load (current-input-port))))
-    (loop for entity in entities do (process-entity entity))))
+    (loop for entity in entities do (*output-formatter* entity))))
 
-(define (process-file-terse)
-  (let ((y (yaml-load (current-input-port))))
-    (pp y)
-    (newline)))
 
 (define (process-filename filename)
-  (with-input-from-file filename *output-formatter*))
+  (with-input-from-file filename process-file))
 
 
 
@@ -325,7 +517,7 @@ as that looks better.")
 (define *debugging* #f)
 (define *head-sep* #\=)
 (define *one-table* #f)
-(define *output-formatter* process-file)
+(define *output-formatter* process-entity)
 (define *show-subtotals* #f)
 (define *table-width* 60)
 (define *underliner* #\-)
@@ -354,7 +546,7 @@ as that looks better.")
          (set! *show-subtotals* #t))
         (args:make-option
          (t terse) #:none "Use terse output."
-         (set! *output-formatter* process-file-terse))
+         (set! *output-formatter* process-entity-terse))
         (args:make-option
          (u underliner) #:required "Character to use for underlining the header."
          (set! *underliner* (string-ref arg 0)))

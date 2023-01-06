@@ -1,0 +1,61 @@
+---
+- name: Sergeant Nessa Kitto
+  description: Petite, attractive, sneaky, and deadly.
+  stats:                        # Average: (/ (+ 6 6 6) 3.0) 6.0
+    - name: Body
+      value: 6
+      points: 12
+    - name: Mind
+      value: 6
+      points: 12
+    - name: Soul
+      value: 6
+      points: 12
+  derived:
+    - name: ACV
+      value: 9
+    - name: DCV
+      value: 9
+    - name: DM
+      value: 5
+    - name: HP
+      value: 60
+    - name: EP
+      value: 60
+    - name: SV
+      value: 12
+  attributes:
+    - name: Attack Mastery
+      level: 3
+      points: 3
+    - name: Defence Mastery
+      level: 3
+      points: 3
+    - name: Extra Actions
+      level: 1
+      details: +1 Extra Action
+      points: 4
+    - name: Features
+      level: 1
+      points: 1
+      details: Appearance
+    - name: "Item: FV2021 Coleopteran"
+      points: 35
+    - name: Skills
+      level: 2
+      points: 2
+      details: 20 Skill Points
+  skills:
+    - name: Gaming
+      level: 3
+      points: 3
+    - name: Sleight of Hand
+      level: 4
+      points: 5
+    - name: Stealth
+      level: 4
+      points: 8
+    - name: Urban Tracking
+      level: 2
+      points: 4
+      

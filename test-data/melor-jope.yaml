@@ -1,0 +1,61 @@
+---
+- name: Sergeant Melor Jope
+  description: Deadly computer geek.
+  stats:                        # Average: (/ (+ 7 7 7) 3.0) 7.0
+    - name: Body
+      value: 7
+      points: 14
+    - name: Mind
+      value: 7
+      points: 14
+    - name: Soul
+      value: 7
+      points: 14
+  derived:
+    - name: ACV
+      value: 7
+    - name: DCV
+      value: 7
+    - name: DM
+      value: 5
+    - name: HP
+      value: 70
+    - name: EP
+      value: 70
+    - name: SV
+      value: 14
+  attributes:
+    # - name: Attack Mastery
+    #   level: 2
+    #   points: 2
+    # - name: Defence Mastery
+    #   level: 2
+    #   points: 2
+    - name: Extra Actions
+      level: 2
+      points: 8
+      details: +2 Extra Actions
+    - name: "Item: FV2021 Coleopteran"
+      points: 35
+    - name: Skills
+      level: 2
+      points: 2
+      details: 20 Skill Points
+  skills:
+    - name: Computers
+      level: 3
+      points: 6
+    - name: Cultural Arts
+      level: 1
+      points: 2
+    - name: Electronics
+      level: 3
+      points: 6
+    - name: Forgery
+      level: 2
+      points: 2
+    - name: Stealth
+      level: 2
+      points: 4
+
+      

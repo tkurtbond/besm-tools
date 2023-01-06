@@ -11,7 +11,7 @@
     colours: UN white, with sky-blue helmets.
   derived:
     - name: Health Points
-      value: 40
+      value: 80
   attributes:
     - name: Features
       level: 1
@@ -27,7 +27,7 @@
       points: 6
       limiters:
         - Gap
-      details: "Thin area, 20 AR"
+      details: "Thin area, 20 AR, 20 Health Points"
     - name: Resilient
       level: 1
       points: 2
@@ -51,9 +51,9 @@
         Lift 500 kg (a horse); +10 Unarmed Combat Damage;
         +2 Muscle Weapons Damage
     - name: Tough
-      level: 2
-      points: 2
-      details: +20 Health Points
+      level: 6
+      points: 6
+      details: +60 Health Points
     - name: "Weapon: Railgun"
       level: 12
       effective: 9
@@ -94,6 +94,10 @@
         Size 2: Medium: +2 to be hit for every size attacker is
         smaller, -2 to be hit for every size attack is larger, 1.5-8
         tonnes, big horse to bigger than an elephant.
+    - name: Conditional Ownership
+      rank: 1
+      points: -1
+      details: UN Army ownership
     - name: "Special Requirement: Frequent maintenance"
       rank: 1
       points: -3

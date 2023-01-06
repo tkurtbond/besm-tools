@@ -25,6 +25,10 @@ $(wildcard build/*.gen.rst): build/besm-rst
 test:	build/besm-rst \
 	$(TESTOUTPUT)
 
+RPBHENTITIES=FV2021-Coleopteran enyon-boase pawl-cardynham nessa-kitto
+RPBHGENRST=$(foreach e,$(RPBHENTITIES),build/$(addsuffix .gen.rst,$(e)))
+$(RPBHGENRST): BROPTS+=-s
+
 stmt:	test $(STMTOUTPUT)
 
 letter: test $(LETTEROUTPUT)
@@ -57,7 +61,7 @@ build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
 
 build/%.ms.pdf : build/%.gen.rst
-	pandoc -r rst -w ms --template=tkb -V twocol -o $@ $<
+	pandoc -r rst -w ms --template=tkb -V twocolumns -o $@ $<
 
 build/%.stmt.ms.pdf : build/%.gen.rst
 	pandoc -r rst -w ms --template=statement \

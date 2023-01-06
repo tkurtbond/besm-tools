@@ -1,0 +1,71 @@
+---
+- name: Sergeant Cador Trewartha
+  description: Sharp shooter.
+  stats:                        # Average: (/ (+ 6 6 6) 3.0) 6
+    - name: Body
+      value: 6
+      points: 12
+    - name: Mind
+      value: 6
+      points: 12
+    - name: Soul
+      value: 6
+      points: 12
+  derived:
+    - name: ACV
+      value: 9
+      alternatives:
+        - Ranged 11 with long guns or heavy weapons
+    - name: DCV
+      value: 9
+    - name: DM
+      value: 5
+    - name: HP
+      value: 60
+    - name: EP
+      value: 60
+    - name: SV
+      value: 12
+  attributes:
+    - name: Attack Mastery
+      level: 3
+      points: 3
+    - name: Defence Mastery
+      level: 3
+      points: 3
+    - name: Extra Actions
+      level: 1
+      points: 4
+      details: +1 Extra Action
+    - name: "Item: FV2021 Coleopteran"
+      points: 35
+    - name: Ranged Attack
+      level: 1
+      points: 1
+      details: Long guns; +2 to ACV
+    - name: Ranged Attack
+      level: 1
+      points: 1
+      details: Heavy Weapons; +2 to ACV
+    - name: Skills
+      level: 2
+      points: 2
+      details: 20 Skill Points
+  skills:
+    - name: Computers
+      level: 3
+      points: 6
+    - name: Cultural Arts
+      level: 1
+      points: 2
+    - name: Electronics
+      level: 3
+      points: 6
+    - name: Forgery
+      level: 2
+      points: 2
+    - name: Stealth
+      level: 2
+      points: 4
+
+      
