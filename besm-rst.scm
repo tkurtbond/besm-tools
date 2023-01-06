@@ -3,7 +3,9 @@
 ;;; Design Decisions:
 ;;;
 ;;; - All mapping keys are lowercase.
-;;; - Details is a string, not a list of strings.
+;;; - Details is a string, not a list of strings, and it is not a
+;;;   complete sentence (and is used as part of something else), so
+;;;   do NOT end it with a period.
 ;;; - enhancers and limiters are lists, generally of strings, but of
 ;;;   lists of [name, counts-as] for those that count as more than one
 ;;;   assigment.
@@ -202,6 +204,7 @@
          (level       (if level level ""))
          (points      (must-exist "points" attribute))
          (details     (may-exist  "details" attribute))
+         (details     (if details (string-trim-both details) details))
          (effective   (may-exist  "effective" attribute))
          (level       (if effective (fmt #f level "(" effective ")") level))
          (enhancers   (may-exist  "enhancers" attribute))
@@ -218,6 +221,7 @@
          (rank        (must-exist "rank" defect))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
+         (details     (if details (string-trim-both details) details))
          (description (if details (fmt #f name " (" details ")") name))
          )
     (dbg (dfmt "process-defect: before row3" nl))
@@ -359,12 +363,13 @@
          (level       (if level level ""))
          (points      (must-exist "points" attribute))
          (details     (may-exist  "details" attribute))
+         (details     (if details (string-trim-both details) details))
          (effective   (may-exist  "effective" attribute))
          (level       (if effective (fmt #f level "(" effective ")") level))
          (enhancers   (may-exist  "enhancers" attribute))
          (limiters    (may-exist  "limiters" attribute))
          (details     (make-attribute-details details enhancers limiters)))
-    (fmt #t name " (" (if details (string-append details ". ") "")
+    (fmt #t name " " level " (" (if details (string-append details ". ") "")
          (dsp points) " CP)")))
 
 (define (process-defect-terse defect)
@@ -374,7 +379,7 @@
          (rank        (must-exist "rank" defect))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
-         )
+         (details     (if details (string-trim-both details) details)))
     (fmt #t name " (" (if details (string-append details ".  ") "")
          (dsp points) " CP)")))
 
@@ -418,7 +423,7 @@
                                      " CP)"))
                   (underline (make-string (string-length entity-header)
                                           *underliner*)))
-             (fmt #t entity-name nl underline nl nl)))
+             (fmt #t entity-header nl underline nl nl)))
           (else
            (fmt #t (dsp entity-total) " CP" nl nl)))
 
@@ -453,7 +458,7 @@
     (when attributes
       (fmt #t (bold "Attributes"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp attributes-total) " CP) "))
+        (fmt #t " (" (dsp attributes-total) " CP)"))
       (fmt #t " — " nl)
       (loop for attribute in attributes
             for i from 1
@@ -464,7 +469,7 @@
     (when defects
       (fmt #t (bold "Defects"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp defects-total) " CP) "))
+        (fmt #t " (" (dsp defects-total) " CP)"))
       (fmt #t " — " nl)
       (loop for defect in defects
             for i from 1
@@ -475,7 +480,7 @@
     (when skills
       (fmt #t (bold "Skills"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp skills-total) " SP) "))
+        (fmt #t " (" (dsp skills-total) " SP)"))
       (fmt #t " — " nl)
       (loop for skill in skills
             for i from 1

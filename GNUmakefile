@@ -1,5 +1,5 @@
 ifndef CSC
-CSC=$(shell type -p csc || type -p chicken-csc || echo 'echo "CSC does not exist; "')
+CSC=$(shell type -p chicken-csc || type -p csc || echo 'echo "csc does not exist; "')
 endif
 
 BROPTS=
