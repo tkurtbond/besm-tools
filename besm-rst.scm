@@ -3,6 +3,7 @@
 ;;; Design Decisions:
 ;;;
 ;;; - All mapping keys are lowercase.
+;;; - Defect points are NEGATIVE.
 ;;; - Details is a string, not a list of strings, and it is not a
 ;;;   complete sentence (and is used as part of something else), so
 ;;;   do NOT end it with a period.
@@ -146,7 +147,8 @@
     ("DM"  . "Damage Multiplier")
     ("HP"  . "Health Points")
     ("EP"  . "Energy Points")
-    ("SV"  . "Shock Value")))
+    ("SV"  . "Shock Value")
+    ("AR"  . "Armour Rating")))
 
 (define (process-derived derived)
   (dbg (dfmt "process-derived: " (pretty derived)))
