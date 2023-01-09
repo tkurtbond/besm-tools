@@ -25,6 +25,10 @@
 ;;; - TODO: Undecided as to whether the attributes, defects, and
 ;;;   skills should be sorted by the program.
 ;;; - Specialisations are a list.
+;;; - TODO: Items have not been considered much.  Currently, Items are
+;;;   recorded with the character entity as single (not nested) entry,
+;;;   and then another entity is created, often in the same file for
+;;;   something simple, like a hand-held weapon.
 
 (module besm-rst ()
 
@@ -248,7 +252,7 @@
     points))
 
 
-(define (process-entity entity)
+(define (process-entity entity entity-no)
   (dbg (dfmt "process-entity: " (pretty entity)))
   ;; It might be a template, an item, or a full character.
   (let ((stats-total 0)
@@ -258,7 +262,10 @@
         (entity-total 0))
 
     (when-in-alist (entity-name "name" entity)
-      (let ((underline (make-string (string-length entity-name) *underliner*)))
+      (let ((underline (make-string (string-length entity-name)
+                                    (if (> entity-no 1)
+                                        *subunderliner*
+                                        *underliner*))))
         (fmt #t entity-name nl underline nl nl)))
 
     (when-in-alist (tagline "tagline" entity)
@@ -335,6 +342,7 @@
     (set! entity-total (+ stats-total attributes-total defects-total))
     (row3 "" (table-bold (number->string entity-total)) (table-bold "TOTAL"))
     (sep3)
+    (fmt #t nl)
     ))
 
 (define (total-points items)
@@ -399,7 +407,7 @@
                           "")
          (dsp points) " SP)")))
 
-(define (process-entity-terse entity)
+(define (process-entity-terse entity entity-no)
   (dbg (dfmt "process-entity-terse: " (pretty entity)))
   ;; It might be a template, an item, or a full character.
   (let* ((entity-name (may-exist "name" entity))
@@ -422,9 +430,11 @@
 
     (cond (entity-name
            (let* ((entity-header (fmt #f entity-name " (" (dsp entity-total)
-                                     " CP)"))
+                                      " CP)"))
                   (underline (make-string (string-length entity-header)
-                                          *underliner*)))
+                                          (if (> entity-no 1)
+                                              *subunderliner*
+                                              *underliner*))))
              (fmt #t entity-header nl underline nl nl)))
           (else
            (fmt #t (dsp entity-total) " CP" nl nl)))
@@ -493,7 +503,9 @@
 (define (process-file)
   ;;; It is a file of possibly multiple entities.
   (let ((entities (yaml-load (current-input-port))))
-    (loop for entity in entities do (*output-formatter* entity))))
+    (loop for entity in entities
+          for entity-no from 1
+          do (*output-formatter* entity entity-no))))
 
 
 (define (process-filename filename)
@@ -528,6 +540,7 @@ as that looks better.")
 (define *show-subtotals* #f)
 (define *table-width* 60)
 (define *underliner* #\-)
+(define *subunderliner* #f)
 
 (define *command-line-options*
   (list (args:make-option
@@ -555,8 +568,15 @@ as that looks better.")
          (t terse) #:none "Use terse output."
          (set! *output-formatter* process-entity-terse))
         (args:make-option
-         (u underliner) #:required "Character to use for underlining the header."
+         (u underliner) #:required
+         "Character to use for underlining the header."
          (set! *underliner* (string-ref arg 0)))
+        (args:make-option
+         (U subunderliner) #:required
+         "Entities after the first are subentities,
+                          and use a different character for
+                          underlining the subheader."
+         (set! *subunderliner* (string-ref arg 0)))
         (args:make-option
          (w width)
          (required: "NUMBER") "Width of table in characters"
