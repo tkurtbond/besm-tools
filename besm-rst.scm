@@ -263,7 +263,8 @@
 
     (when-in-alist (entity-name "name" entity)
       (let ((underline (make-string (string-length entity-name)
-                                    (if (> entity-no 1)
+                                    (if (and (> entity-no 1)
+                                             *subunderliner*)
                                         *subunderliner*
                                         *underliner*))))
         (fmt #t entity-name nl underline nl nl)))
@@ -432,7 +433,8 @@
            (let* ((entity-header (fmt #f entity-name " (" (dsp entity-total)
                                       " CP)"))
                   (underline (make-string (string-length entity-header)
-                                          (if (> entity-no 1)
+                                          (if (and (> entity-no 1)
+                                                   *subunderliner*)
                                               *subunderliner*
                                               *underliner*))))
              (fmt #t entity-header nl underline nl nl)))
