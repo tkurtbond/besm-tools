@@ -45,6 +45,7 @@
 (import args)
 (import bindings)
 (import fmt)
+(import fmt-unicode)
 (import loop)
 (import matchable)
 (import (srfi 1))
@@ -60,6 +61,12 @@
 
 (define (dfmt . args)
   (apply fmt (cons (current-error-port) args)))
+
+(define (die status . args)
+  (fmt (current-error-port) (program-name) ": ")
+  (apply fmt (cons (current-error-port) args))
+  (fmt (current-error-port) "\n")
+  (exit status))
 
 ;; (put 'when-in-alist 'scheme-indent-function 1)
 (define-syntax when-in-alist
@@ -98,14 +105,15 @@
   (separator-line 1 #\+ #\-))
 
 (define (empty)
-  (fmt #t (with-width *table-width* (columnar "|" (dsp " ") "|"))))
+  (fmt #t (with-width *table-width*
+                      (fmt-unicode (columnar "|" (dsp " ") "|")))))
 
 (define (row2 col1 col2)
   (dbg (dfmt "row2: col1: " (wrt col1) " col2: " (wrt col2) nl))
   (fmt #t (with-width *table-width*
-                      (columnar "|" *num-width* (dsp col1)
-                                "|" (wrap-lines col2)
-                                "|"))))
+                      (fmt-unicode (columnar "|" *num-width* (dsp col1)
+                                             "|" (wrap-lines col2)
+                                             "|")))))
 
 (define (headsep2)
   (separator-line 2 #\+ *head-sep*))
@@ -117,10 +125,10 @@
   ;; (dbg (dfmt "row3: col1: " (wrt col1) " col2: " (wrt col2) " col3: "
   ;;            (wrt col3) nl))
   (fmt #t (with-width *table-width*
-                      (columnar "|" *num-width* (dsp col1)
-                                "|" *num-width* (dsp col2)
-                                "|" (wrap-lines (dsp col3))
-                                "|"))))
+                      (fmt-unicode (columnar "|" *num-width* (dsp col1)
+                                             "|" *num-width* (dsp col2)
+                                             "|" (wrap-lines (dsp col3))
+                                             "|")))))
 (define (headsep3)
   (separator-line 3 #\+ *head-sep*))
 
@@ -129,7 +137,10 @@
 
 
 (define (must-exist item alist)
-  (cdr (assoc item alist)))
+  (let ((found (assoc item alist)))
+    (if found
+        (cdr found)
+        (die 2 "Unable to find " (wrt item) " in " (wrt alist)))))
 
 (define (may-exist item alist)
   (let ((result (assoc item alist)))
