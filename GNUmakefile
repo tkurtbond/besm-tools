@@ -11,6 +11,7 @@ PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
 
 TESTDATA=$(wildcard test-data/*.yaml)
 TESTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .gen.rst,$(basename $(f) .yaml)))
+TESTTERSEOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -terse.gen.rst,$(basename $(f) .yaml)))
 STMTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml)))
 LETTEROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .ms.pdf,$(basename $(f) .yaml)))
 MSOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms,$(basename $(f) .yaml)))
@@ -22,8 +23,11 @@ all: build $(PROGRAMS)
 
 $(wildcard build/*.gen.rst): build/besm-rst
 
+# Note: enyon-boase.yaml has attributes, defects, and skills out of order,
+# for testing sorting.
+
 test:	build/besm-rst \
-	$(TESTOUTPUT)
+	$(TESTOUTPUT) $(TESTTERSEOUTPUT)
 
 RPBHENTITIES=FV2021-Coleopteran enyon-boase pawl-cardynham nessa-kitto
 RPBHGENRST=$(foreach e,$(RPBHENTITIES),build/$(addsuffix .gen.rst,$(e)))
@@ -56,6 +60,9 @@ install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
 
 build/%.gen.rst : test-data/%.yaml
 	build/besm-rst $(BROPTS) $< >$@
+
+build/%-terse.gen.rst : test-data/%.yaml
+	build/besm-rst -t $(BROPTS) $< >$@
 
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@

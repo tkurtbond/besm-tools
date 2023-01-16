@@ -24,9 +24,6 @@
     - name: SV
       value: 14
   attributes:
-    - name: Attack Mastery
-      level: 3
-      points: 3
     - name: Extra Actions
       level: 1
       points: 4
@@ -37,14 +34,17 @@
       level: 2
       points: 2
       details: 20 Skill Points
+    - name: Attack Mastery      # This is deliberately out of order.
+      level: 3
+      points: 3
   defects:
     - name: "Unique Defect: Obsessed by Military History"
       rank: 1
       points: -1
+    - name: A defect to sort to the beginning
+      rank: 1
+      points: -1
   skills:
-    - name: Interrogation
-      level: 1
-      points: 2
     - name: Law
       level: 2
       points: 2
@@ -56,6 +56,9 @@
     - name: Military Sciences
       level: 2
       points: 4
+    - name: Interrogation       # This is deliberately out of order.
+      level: 1
+      points: 2
     - name: Persuasion
       level: 1
       points: 3

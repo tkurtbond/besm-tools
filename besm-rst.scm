@@ -262,6 +262,10 @@
     (row3 level points description)
     points))
 
+(define (name-ci<? a b)
+  (let ((a-name (must-exist "name" a))
+        (b-name (must-exist "name" b)))
+    (string-ci<? a-name b-name)))
 
 (define (process-entity entity entity-no)
   (dbg (dfmt "process-entity: " (pretty entity)))
@@ -315,7 +319,8 @@
       (row3 (table-bold "LEVEL") (table-bold "POINTS") (table-bold "ATTRIBUTE"))
       (headsep3)
       (set! attributes-total
-        (loop for attribute in attributes sum (process-attribute attribute)
+        (loop for attribute in (sort attributes name-ci<?)
+              sum (process-attribute attribute)
               do (sep3)))
       (when *show-subtotals*
         (row3 "" (table-bold (number->string attributes-total))
@@ -329,7 +334,9 @@
       (row3 (table-bold "RANK") (table-bold "POINTS") (table-bold "DEFECT"))
       (headsep3)
       (set! defects-total 
-        (loop for defect in defects sum (process-defect defect) do (sep3)))
+        (loop for defect in (sort defects name-ci<?)
+              sum (process-defect defect)
+              do (sep3)))
       (when *show-subtotals*
         (row3 "" (table-bold (number->string defects-total))
               (table-bold "DEFECTS TOTAL"))
@@ -342,7 +349,9 @@
       (row3 (table-bold "LEVEL") (table-bold "POINTS") (table-bold "SKILL"))
       (headsep3)
       (set! skills-total
-        (loop for skill in skills sum (process-skill skill) do (sep3)))
+        (loop for skill in (sort skills name-ci<?)
+              sum (process-skill skill)
+              do (sep3)))
       (row3 "" (table-bold (number->string skills-total))
             (table-bold "SKILL POINTS TOTAL"))
       (sep3)
@@ -485,7 +494,7 @@
       (when *show-subtotals*
         (fmt #t " (" (dsp attributes-total) " CP)"))
       (fmt #t " — " nl)
-      (loop for attribute in attributes
+      (loop for attribute in (sort attributes name-ci<?)
             for i from 1
             when (> i 1) do (fmt #t ", ")
             do (process-attribute-terse attribute))
@@ -496,7 +505,7 @@
       (when *show-subtotals*
         (fmt #t " (" (dsp defects-total) " CP)"))
       (fmt #t " — " nl)
-      (loop for defect in defects
+      (loop for defect in (sort defects name-ci<?)
             for i from 1
             when (> i 1) do (fmt #t ", ")
             do (process-defect-terse defect))
@@ -507,7 +516,7 @@
       (when *show-subtotals*
         (fmt #t " (" (dsp skills-total) " SP)"))
       (fmt #t " — " nl)
-      (loop for skill in skills
+      (loop for skill in (sort skills name-ci<?)
             for i from 1
             when (> i 1) do (fmt #t ", ")
             do (process-skill-terse skill)))

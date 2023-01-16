@@ -87,13 +87,6 @@
       limiters:
         - Charges
   defects:
-    - name: Awkward Size
-      rank: 2
-      points: -4
-      details: |
-        Size 2: Medium: +2 to be hit for every size attacker is
-        smaller, -2 to be hit for every size attack is larger, 1.5-8
-        tonnes, big horse to bigger than an elephant
     - name: Conditional Ownership
       rank: 1
       points: -1
@@ -101,3 +94,10 @@
     - name: "Special Requirement: Frequent maintenance"
       rank: 1
       points: -3
+    - name: Awkward Size        # This is deliberately out of order.
+      rank: 2
+      points: -4
+      details: |
+        Size 2: Medium: +2 to be hit for every size attacker is
+        smaller, -2 to be hit for every size attack is larger, 1.5-8
+        tonnes, big horse to bigger than an elephant
