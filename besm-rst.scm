@@ -604,12 +604,18 @@ as that looks better.")
          (required: "NUMBER") "Width of table in characters"
          (set! *table-width* (string->number arg)))))
 
-(receive (options operands) (args:parse (command-line-arguments)
-                                        *command-line-options*)
-  ;; This outputs reST, so bolding is two asterisks on each side.
-  (set! *num-width* (+ *num-width* 4))
+(define (main)
+  (receive (options operands) (args:parse (command-line-arguments)
+                                          *command-line-options*)
+    ;; This outputs reST, so bolding is two asterisks on each side.
+    (set! *num-width* (+ *num-width* 4))
 
-  (if  (zero? (length operands))
-       (with-input-from-port (current-input-port) process-file)
-       (loop for filename in operands do (process-filename filename))))
+    (if  (zero? (length operands))
+         (with-input-from-port (current-input-port) process-file)
+         (loop for filename in operands do (process-filename filename)))))
+
+(cond-expand
+  ((and chicken-5 compiling)
+   (main))
+  ((and chicken-5 csi)))
 )
