@@ -3,28 +3,41 @@
 ;;; Design Decisions:
 ;;;
 ;;; - All mapping keys are lowercase.
+;;;   
 ;;; - Defect points are NEGATIVE.
+;;;   
 ;;; - Details is a string, not a list of strings, and it is not a
-;;;   complete sentence (and is used as part of something else), so
-;;;   do NOT end it with a period.
-;;; - enhancements and limiters are lists, generally of strings, but of
-;;;   lists of [name, counts-as] for those that count as more than one
-;;;   assigment.
+;;;   complete sentence (and is used as part of something else), so do
+;;;   NOT end it with a period.
+;;;   
+;;; - enhancements and limiters are lists, generally of strings, but
+;;;   of lists of [name, counts-as] for those that count as more than
+;;;   one assigment.
+;;;   
+;;; - Note that the Attack Helicopter, BESM 4E p. 217, shows
+;;;   enhancements as negative and limiters as positive.
+;;;   
 ;;; - At this time I don't plan to calculate the points values of
 ;;;   anything.  The person entering the YAML version of the template
 ;;;   or character has to add up and enter the points themselves.
 ;;;   This way we don't have to do any calculations.  Enhancement and
 ;;;   limiters that count as more than one get entered (if the person
-;;;   is interested) so the program can display the "Enhancement -X" or
-;;;   "Limiter +X" if desired.  Still no calculation of points.
+;;;   is interested) so the program can display the "Enhancement -X"
+;;;   or "Limiter +X" if desired.  Still no calculation of points.
+;;;   
 ;;; - Haven't decided yet if weapons or armour should be entered as
 ;;;   templates, but I'm leaning towards NOT.
-;;; - Items (like the Hazmat Suit, p. 212) probably should definitely
-;;;   be enterable as templates.
+;;;   
+;;; - Items (like the Hazmat Suit, BESM 4E p. 212) probably should
+;;;   definitely be enterable as templates.
+;;;   
 ;;; - Derived Values are in a section with the mapping key "derived".
+;;;   
 ;;; - TODO: Undecided as to whether the attributes, defects, and
 ;;;   skills should be sorted by the program.
+;;;   
 ;;; - Specialisations are a list.
+;;;   
 ;;; - TODO: Items have not been considered much.  Currently, Items are
 ;;;   recorded with the character entity as single (not nested) entry,
 ;;;   and then another entity is created, often in the same file for
