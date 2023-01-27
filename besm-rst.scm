@@ -7,15 +7,15 @@
 ;;; - Details is a string, not a list of strings, and it is not a
 ;;;   complete sentence (and is used as part of something else), so
 ;;;   do NOT end it with a period.
-;;; - enhancers and limiters are lists, generally of strings, but of
+;;; - enhancements and limiters are lists, generally of strings, but of
 ;;;   lists of [name, counts-as] for those that count as more than one
 ;;;   assigment.
 ;;; - At this time I don't plan to calculate the points values of
 ;;;   anything.  The person entering the YAML version of the template
 ;;;   or character has to add up and enter the points themselves.
-;;;   This way we don't have to do any calculations.  Enhancer and
+;;;   This way we don't have to do any calculations.  Enhancement and
 ;;;   limiters that count as more than one get entered (if the person
-;;;   is interested) so the program can display the "Enhancer -X" or
+;;;   is interested) so the program can display the "Enhancement -X" or
 ;;;   "Limiter +X" if desired.  Still no calculation of points.
 ;;; - Haven't decided yet if weapons or armour should be entered as
 ;;;   templates, but I'm leaning towards NOT.
@@ -44,8 +44,7 @@
 
 (import args)
 (import bindings)
-(import fmt)
-(import fmt-unicode)
+(import (schemepunk show))
 (import loop)
 (import matchable)
 (import (srfi 1))
@@ -60,12 +59,12 @@
        (flush-output (current-error-port))))))
 
 (define (dfmt . args)
-  (apply fmt (cons (current-error-port) args)))
+  (apply show (cons (current-error-port) args)))
 
 (define (die status . args)
-  (fmt (current-error-port) (program-name) ": ")
-  (apply fmt (cons (current-error-port) args))
-  (fmt (current-error-port) "\n")
+  (show (current-error-port) (program-name) ": ")
+  (apply show (cons (current-error-port) args))
+  (show (current-error-port) "\n")
   (exit status))
 
 ;; (put 'when-in-alist 'scheme-indent-function 1)
@@ -80,12 +79,12 @@
 (define (bold s)
   (cond
    ((string-null? s) s)
-   (else (fmt #f "**" s "**"))))
+   (else (show #f "**" s "**"))))
 
 (define (italicize s)
   (cond
    ((string-null? s) s)
-   (else (fmt #f "*" s "*"))))
+   (else (show #f "*" s "*"))))
 
 (define (table-bold s)
   (if *bolding*
@@ -95,9 +94,9 @@
 (define (separator-line num-columns sep c)
   ;; The last column is the description, and absorbs any unused space.
   (loop for i from 1 to (- num-columns 1)
-        do (fmt #t (pad-char c sep (pad *num-width*))))
-  (fmt #t (pad-char c sep
-                    (pad (- *table-width* 1 1 (* (- num-columns 1)
+        do (show #t  sep (with ((pad-char c)) (padded *num-width*))))
+  (show #t (with ((pad-char c))
+             sep (padded (- *table-width* 1 1 (* (- num-columns 1)
                                                  (+ *num-width* 1)))) sep)
        nl))
 
@@ -105,15 +104,15 @@
   (separator-line 1 #\+ #\-))
 
 (define (empty)
-  (fmt #t (with-width *table-width*
-                      (fmt-unicode (columnar "|" (dsp " ") "|")))))
+  (show #t (with ((width *table-width*))
+             (columnar "|" (displayed " ") "|"))))
 
 (define (row2 col1 col2)
-  (dbg (dfmt "row2: col1: " (wrt col1) " col2: " (wrt col2) nl))
-  (fmt #t (with-width *table-width*
-                      (fmt-unicode (columnar "|" *num-width* (dsp col1)
-                                             "|" (wrap-lines col2)
-                                             "|")))))
+  (dbg (dfmt "row2: col1: " (written col1) " col2: " (written col2) nl))
+  (show #t (with ((width *table-width*))
+             (columnar "|" *num-width* (displayed col1)
+                       "|" (wrapped col2)
+                       "|"))))
 
 (define (headsep2)
   (separator-line 2 #\+ *head-sep*))
@@ -124,11 +123,11 @@
 (define (row3 col1 col2 col3)
   ;; (dbg (dfmt "row3: col1: " (wrt col1) " col2: " (wrt col2) " col3: "
   ;;            (wrt col3) nl))
-  (fmt #t (with-width *table-width*
-                      (fmt-unicode (columnar "|" *num-width* (dsp col1)
-                                             "|" *num-width* (dsp col2)
-                                             "|" (wrap-lines (dsp col3))
-                                             "|")))))
+  (show #t (with ((width *table-width*))
+             (columnar "|" *num-width* (displayed col1)
+                       "|" *num-width* (displayed col2)
+                       "|" (wrapped (displayed col3))
+                       "|"))))
 (define (headsep3)
   (separator-line 3 #\+ *head-sep*))
 
@@ -140,7 +139,7 @@
   (let ((found (assoc item alist)))
     (if found
         (cdr found)
-        (die 2 "Unable to find " (wrt item) " in " (wrt alist)))))
+        (die 2 "Unable to find " (written item) " in " (written alist)))))
 
 (define (may-exist item alist)
   (let ((result (assoc item alist)))
@@ -181,29 +180,35 @@
     (row2 value description)))
 
 (define (format-customizers items type)
+  ;; Note that the Attack Helicopter, BESM 4E p. 217, shows enhancements
+  ;; as negative and limiters as positive.
   (loop for item in items
         collect (match item
                   [(? string? s)
-                   (fmt #f (dsp s) ": " (if (eq? type 'enhancer) "-1" "+1"))]
+                   (show #f (displayed s) " "
+                         (if (eq? type 'enhancement) "−1" "+1"))]
                   [((? string? name) (? number? counts-as))
-                   (fmt #f (dsp name) ": " (if (eq? type 'enhancer) "-" "+")
-                        (dsp counts-as))]
+                   (show #f (displayed name) " "
+                         (if (eq? type 'enhancement) "−" "+")
+                         (displayed counts-as))]
                   [_ (error 'format-customizers
                             "do not understand customizer" item)])))
 
-(define (make-attribute-details details enhancers limiters)
+(define (make-attribute-details details enhancements limiters)
   (dbg (dfmt "make-attribute-details: details: " details
-             " enhancers: " enhancers " limiters: " limiters))
-  (let* ((details   (if details   (list (string-trim-both details)) '()))
-         (enhancers (if enhancers (format-customizers enhancers 'enhancer) '()))
-         (limiters  (if limiters  (format-customizers limiters 'limiter) '()))
-         (partial   (append '() enhancers limiters))
-         (sorted    (sort partial string-ci<?))
-         (joined    (if (null? sorted)
+             " enhancements: " enhancements " limiters: " limiters))
+  (let* ((details      (if details   (list (string-trim-both details)) '()))
+         (enhancements (if enhancements (format-customizers enhancements
+                                                            'enhancement) '()))
+         (limiters     (if limiters  (format-customizers limiters
+                                                         'limiter) '()))
+         (partial      (append '() enhancements limiters))
+         (sorted       (sort partial string-ci<?))
+         (joined       (if (null? sorted)
                         '()
                         (list (string-join sorted ", "))))
          (result    (append joined details)))
-    (dbg (dfmt "enhancers: " (pretty enhancers))
+    (dbg (dfmt "enhancements: " (pretty enhancements))
          (dfmt "limiters: " (pretty limiters))
          (dfmt "partial: " (pretty partial))
          (dfmt "sorted: " (pretty sorted))
@@ -216,18 +221,18 @@
 (define (process-attribute attribute)
   (dbg (dfmt "process-attribute: " (pretty attribute)))
   ;; returns the cost of the attribute
-  (let* ((name        (must-exist "name" attribute))
-         (level       (may-exist "level" attribute))
-         (level       (if level level ""))
-         (points      (must-exist "points" attribute))
-         (details     (may-exist  "details" attribute))
-         (details     (if details (string-trim-both details) details))
-         (effective   (may-exist  "effective" attribute))
-         (level       (if effective (fmt #f level "(" effective ")") level))
-         (enhancers   (may-exist  "enhancers" attribute))
-         (limiters    (may-exist  "limiters" attribute))
-         (details     (make-attribute-details details enhancers limiters))
-         (description (if details (fmt #f name " (" details ")") name)))
+  (let* ((name         (must-exist "name" attribute))
+         (level        (may-exist "level" attribute))
+         (level        (if level level ""))
+         (points       (must-exist "points" attribute))
+         (details      (may-exist  "details" attribute))
+         (details      (if details (string-trim-both details) details))
+         (effective    (may-exist  "effective" attribute))
+         (level        (if effective (show #f level "(" effective ")") level))
+         (enhancements (may-exist  "enhancements" attribute))
+         (limiters     (may-exist  "limiters" attribute))
+         (details      (make-attribute-details details enhancements limiters))
+         (description (if details (show #f name " (" details ")") name)))
     (row3 level points description)
     points))
 
@@ -239,7 +244,7 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details))
-         (description (if details (fmt #f name " (" details ")") name))
+         (description (if details (show #f name " (" details ")") name))
          )
     (dbg (dfmt "process-defect: before row3" nl))
     (row3 rank points description)
@@ -253,12 +258,12 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill))
-         (description     (fmt #f name (if specialisations
-                                           (string-append
-                                            " ("
-                                            (string-join specialisations ", ")
-                                            ")")
-                                           ""))))
+         (description     (show #f name (if specialisations
+                                            (string-append
+                                             " ("
+                                             (string-join specialisations ", ")
+                                             ")")
+                                            ""))))
     (row3 level points description)
     points))
 
@@ -282,16 +287,16 @@
                                              *subunderliner*)
                                         *subunderliner*
                                         *underliner*))))
-        (fmt #t entity-name nl underline nl nl)))
+        (show #t entity-name nl underline nl nl)))
 
     (when-in-alist (tagline "tagline" entity)
-      (fmt #t (italicize (string-trim-both tagline)) nl nl))
+      (show #t (italicize (string-trim-both tagline)) nl nl))
 
     (when-in-alist (description "description" entity)
-      (fmt #t description nl nl))
+      (show #t description nl nl))
   
     (when-in-alist (size "size" entity)
-      (fmt #t (bold "Size:") " " size nl nl))
+      (show #t (bold "Size:") " " size nl nl))
 
     (when-in-alist (stats "stats" entity)
       (sep3)
@@ -304,7 +309,7 @@
               (table-bold "STATS TOTAL"))
         (sep3))
       (cond (*one-table* (empty))
-            (else (fmt #t nl))))
+            (else (show #t nl))))
 
     (when-in-alist (derived "derived" entity)
       (sep2)
@@ -312,7 +317,7 @@
       (headsep2)
       (loop for d in derived do (process-derived d) do (sep2))
       (cond (*one-table* (empty))
-            (else (fmt #t nl))))
+            (else (show #t nl))))
 
     (when-in-alist (attributes "attributes" entity)
       (sep3)
@@ -327,7 +332,7 @@
               (table-bold "ATTRIBUTES TOTAL"))
         (sep3))
       (cond (*one-table* (empty))
-            (else (fmt #t nl))))
+            (else (show #t nl))))
 
     (when-in-alist (defects "defects" entity)
       (sep3)
@@ -342,7 +347,7 @@
               (table-bold "DEFECTS TOTAL"))
         (sep3))
       (cond (*one-table* (empty))
-            (else (fmt #t nl))))
+            (else (show #t nl))))
 
     (when-in-alist (skills "skills" entity)
       (sep3)
@@ -356,21 +361,21 @@
             (table-bold "SKILL POINTS TOTAL"))
       (sep3)
       (cond (*one-table* (empty))
-            (else (fmt #t nl))))
+            (else (show #t nl))))
 
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
     (row3 "" (table-bold (number->string entity-total)) (table-bold "TOTAL"))
     (sep3)
-    (fmt #t nl)
+    (show #t nl)
     ))
 
 (define (total-points items)
   (loop for item in items sum (must-exist "points" item)))
 
 (define (process-stat-terse stat)
-  (fmt #t (must-exist "name" stat) " " (must-exist "value" stat)
+  (show #t (must-exist "name" stat) " " (must-exist "value" stat)
        " (" (must-exist "points" stat) " CP)"))
 
 (define (process-derived-terse derived)
@@ -384,24 +389,24 @@
                                            (string-join alternatives ", ")
                                            ")")
                             #f)))
-    (fmt #t name " " (dsp value) (if alternatives alternatives ""))))
+    (show #t name " " (displayed value) (if alternatives alternatives ""))))
 
 (define (process-attribute-terse attribute)
   (dbg (dfmt "process-attribute-terse: " (pretty attribute)))
   ;; returns the cost of the attribute
-  (let* ((name        (must-exist "name" attribute))
-         (level       (may-exist "level" attribute))
-         (level       (if level level ""))
-         (points      (must-exist "points" attribute))
-         (details     (may-exist  "details" attribute))
-         (details     (if details (string-trim-both details) details))
-         (effective   (may-exist  "effective" attribute))
-         (level       (if effective (fmt #f level "(" effective ")") level))
-         (enhancers   (may-exist  "enhancers" attribute))
-         (limiters    (may-exist  "limiters" attribute))
-         (details     (make-attribute-details details enhancers limiters)))
-    (fmt #t name " " level " (" (if details (string-append details ". ") "")
-         (dsp points) " CP)")))
+  (let* ((name         (must-exist "name" attribute))
+         (level        (may-exist "level" attribute))
+         (level        (if level level ""))
+         (points       (must-exist "points" attribute))
+         (details      (may-exist  "details" attribute))
+         (details      (if details (string-trim-both details) details))
+         (effective    (may-exist  "effective" attribute))
+         (level        (if effective (show #f level "(" effective ")") level))
+         (enhancements (may-exist  "enhancements" attribute))
+         (limiters     (may-exist  "limiters" attribute))
+         (details      (make-attribute-details details enhancements limiters)))
+    (show #t name " " level " (" (if details (string-append details ". ") "")
+         (displayed points) " CP)")))
 
 (define (process-defect-terse defect)
   (dbg (dfmt "process-defect-terse: " (pretty defect)))
@@ -411,8 +416,8 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
-    (fmt #t name " (" (if details (string-append details ".  ") "")
-         (dsp points) " CP)")))
+    (show #t name " (" (if details (string-append details ".  ") "")
+         (displayed points) " CP)")))
 
 (define (process-skill-terse skill)
   (dbg (dfmt "process-skill-terse: " (pretty skill)))
@@ -421,12 +426,12 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (fmt #t name " (" (if specialisations
+    (show #t name " (" (if specialisations
                           (string-append
                            (string-join specialisations ", ")
                            ".  ")
                           "")
-         (dsp points) " SP)")))
+         (displayed points) " SP)")))
 
 (define (process-entity-terse entity entity-no)
   (dbg (dfmt "process-entity-terse: " (pretty entity)))
@@ -450,75 +455,76 @@
          )
 
     (cond (entity-name
-           (let* ((entity-header (fmt #f entity-name " (" (dsp entity-total)
+           (let* ((entity-header (show #f entity-name " ("
+                                       (displayed entity-total)
                                       " CP)"))
                   (underline (make-string (string-length entity-header)
                                           (if (and (> entity-no 1)
                                                    *subunderliner*)
                                               *subunderliner*
                                               *underliner*))))
-             (fmt #t entity-header nl underline nl nl)))
+             (show #t entity-header nl underline nl nl)))
           (else
-           (fmt #t (dsp entity-total) " CP" nl nl)))
+           (show #t (displayed entity-total) " CP" nl nl)))
 
     (when tagline
-      (fmt #t (italicize (string-trim-both tagline)) nl nl))
+      (show #t (italicize (string-trim-both tagline)) nl nl))
 
     (when description
-      (fmt #t description nl nl))
+      (show #t description nl nl))
     
     (when size
-      (fmt #t (bold "Size:") " " size nl nl))
+      (show #t (bold "Size:") " " size nl nl))
 
     (when stats
-      (fmt #t (bold "Statistics"))
+      (show #t (bold "Statistics"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp stats-total) " CP) "))
-      (fmt #t " — " nl)
+        (show #t " (" (displayed stats-total) " CP) "))
+      (show #t " — " nl)
       (loop for stat in stats
             for i from 1
-            when (> i 1) do (fmt #t ", ")
+            when (> i 1) do (show #t ", ")
             do (process-stat-terse stat))
-      (fmt #t nl nl))
+      (show  #t nl nl))
 
     (when derived
-      (fmt #t (bold "Derived Values") " — ")
+      (show #t (bold "Derived Values") " — ")
       (loop for d in derived
             for i from 1
-            when (> i 1) do (fmt #t ", ")
+            when (> i 1) do (show #t ", ")
             do (process-derived-terse d))
-      (fmt #t nl nl))
+      (show #t nl nl))
 
     (when attributes
-      (fmt #t (bold "Attributes"))
+      (show  #t (bold "Attributes"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp attributes-total) " CP)"))
-      (fmt #t " — " nl)
+        (show #t " (" (displayed attributes-total) " CP)"))
+      (show #t " — " nl)
       (loop for attribute in (sort attributes name-ci<?)
             for i from 1
-            when (> i 1) do (fmt #t ", ")
+            when (> i 1) do (show #t ", ")
             do (process-attribute-terse attribute))
-      (fmt #t nl nl))
+      (show #t nl nl))
 
     (when defects
-      (fmt #t (bold "Defects"))
+      (show #t (bold "Defects"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp defects-total) " CP)"))
-      (fmt #t " — " nl)
+        (show #t " (" (displayed defects-total) " CP)"))
+      (show #t " — " nl)
       (loop for defect in (sort defects name-ci<?)
             for i from 1
-            when (> i 1) do (fmt #t ", ")
+            when (> i 1) do (show #t ", ")
             do (process-defect-terse defect))
-      (fmt #t nl nl))
+      (show #t nl nl))
 
     (when skills
-      (fmt #t (bold "Skills"))
+      (show #t (bold "Skills"))
       (when *show-subtotals*
-        (fmt #t " (" (dsp skills-total) " SP)"))
-      (fmt #t " — " nl)
+        (show #t " (" (displayed skills-total) " SP)"))
+      (show #t " — " nl)
       (loop for skill in (sort skills name-ci<?)
             for i from 1
-            when (> i 1) do (fmt #t ", ")
+            when (> i 1) do (show #t ", ")
             do (process-skill-terse skill)))
     ))
 
@@ -546,7 +552,7 @@
        "Note: use -1 (or --one) if you are generating this for HTML output,
 as that looks better.")
       (newline)
-      (fmt #t "Current argv: " (argv) nl)))
+      (show #t "Current argv: " (written (argv)) nl)))
   (exit 1))
 
 (define *bolding* #t)

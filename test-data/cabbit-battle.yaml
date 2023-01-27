@@ -60,7 +60,11 @@
       level: 5
       effective: 1
       points: 10
-      details: "Drain: Soul -1; Penetrating -1; Range -1; Spreading -1"
+      enhancements:
+        - "Drain: Soul"
+        - Penetrating
+        - Range
+        - Spreading
   defects:
     - name: Easily Distracted
       rank: 1
