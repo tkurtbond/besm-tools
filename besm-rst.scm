@@ -5,6 +5,12 @@
 ;;; - All mapping keys are lowercase.
 ;;;   
 ;;; - Defect points are NEGATIVE.
+;;;
+;;; - Things that this program has to interpret, like defect points,
+;;;   use ASCII charater 45, Unicode hyphen-minus.  Things it doesn't,
+;;;   like the contents of details, should use whichever is
+;;;   appropriate in typeset text, like em and en dashes, Unicode
+;;;   MINUS SIGN, Unicode MULTIPLICATION SIGN, etc.
 ;;;   
 ;;; - Details is a string, not a list of strings, and it is not a
 ;;;   complete sentence (and is used as part of something else), so do
