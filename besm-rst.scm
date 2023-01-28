@@ -201,14 +201,20 @@
 (define (format-customizers items type)
   ;; Note that the Attack Helicopter, BESM 4E p. 217, shows enhancements
   ;; as negative and limiters as positive.
+  ;;
+  ;; When I display or print the PDFs on my Unix boxes, the spacing
+  ;; between Unicode MINUS SIGN and the following number is off,
+  ;; probably due to bugs in the rendering software.  The spacing is
+  ;; fine on macOS.  So use Unicode HYPEN-MINUS, ASCII -, code 45, despite
+  ;; it looking bad typographically.
   (loop for item in items
         collect (match item
                   [(? string? s)
                    (show #f (displayed s) " "
-                         (if (eq? type 'enhancement) "−1" "+1"))]
+                         (if (eq? type 'enhancement) "-1" "+1"))]
                   [((? string? name) (? number? counts-as))
                    (show #f (displayed name) " "
-                         (if (eq? type 'enhancement) "−" "+")
+                         (if (eq? type 'enhancement) "-" "+")
                          (displayed counts-as))]
                   [_ (error 'format-customizers
                             "do not understand customizer" item)])))
