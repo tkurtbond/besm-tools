@@ -1,3 +1,4 @@
+SHELL=bash
 ifndef CSC
 CSC=$(shell type -p csc || type -p chicken-csc || echo 'echo "csc does not exist; "')
 endif
