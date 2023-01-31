@@ -311,8 +311,9 @@
     (when-in-alist (tagline "tagline" entity)
       (show #t (italicize (string-trim-both tagline)) nl nl))
 
-    (when-in-alist (description "description" entity)
-      (show #t description nl nl))
+    (unless *omit-entity-description*
+      (when-in-alist (description "description" entity)
+        (show #t description nl nl)))
   
     (when-in-alist (size "size" entity)
       (show #t (bold "Size:") " " size nl nl))
@@ -489,7 +490,7 @@
     (when tagline
       (show #t (italicize (string-trim-both tagline)) nl nl))
 
-    (when description
+    (when (and description (not *omit-entity-description*))
       (show #t description nl nl))
     
     (when size
@@ -575,15 +576,16 @@ as that looks better.")
   (exit 1))
 
 (define *bolding* #t)
+(define *debugging* #f)
+(define *head-sep* #\=)
 (define *num-width* (max
                      (string-length "LEVEL")
                      (string-length "VALUE")
                      (string-length "POINTS")
                      ))
-(define *debugging* #f)
-(define *head-sep* #\=)
 (define *one-table* #f)
 (define *output-formatter* process-entity)
+(define *omit-entity-description* #f)
 (define *show-subtotals* #f)
 (define *table-width* 60)
 (define *underliner* #\-)
@@ -596,6 +598,9 @@ as that looks better.")
         (args:make-option
          (d debug) #:none "Turn on debugging."
          (set! *debugging* #t))
+        (args:make-option
+         (D omit-description) #:none "Omit the entiy description."
+         (set! *omit-entity-description* #t))
         (args:make-option
          (h help) #:none "Display this text."
          (usage))
