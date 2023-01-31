@@ -2,4 +2,5 @@
   Would it be better for the derived values and the totals to be 3
   columns, with the second column empty for the derived values and the
   first column empty for the totals?
-* TODO Implement terse mode.
+* DONE Implement terse mode.
+* TODO Implement list tables mode?
