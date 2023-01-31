@@ -167,7 +167,7 @@
         result)))
 
 (define (process-stat stat)
-  (dbg (dfmt "process-stat: " (pretty stat)))
+  (dbg (dfmt "process-stat: " (pretty stat) nl))
   (let ((name   (must-exist "name" stat))
         (value  (must-exist "value" stat))
         (points (must-exist "points" stat)))
@@ -184,7 +184,7 @@
     ("AR"  . "Armour Rating")))
 
 (define (process-derived derived)
-  (dbg (dfmt "process-derived: " (pretty derived)))
+  (dbg (dfmt "process-derived: " (pretty derived) nl))
   ;; There are no points.
   (let* ((name          (must-exist "name" derived))
          (expansion     (may-exist name derived-abbreviations))
@@ -221,30 +221,30 @@
 
 (define (make-attribute-details details enhancements limiters)
   (dbg (dfmt "make-attribute-details: details: " details
-             " enhancements: " enhancements " limiters: " limiters))
+             " enhancements: " enhancements " limiters: " limiters nl))
   (let* ((details      (if details   (list (string-trim-both details)) '()))
-         (enhancements (if enhancements (format-customizers enhancements
-                                                            'enhancement) '()))
-         (limiters     (if limiters  (format-customizers limiters
-                                                         'limiter) '()))
+         (enhancements (if (and enhancements (pair? enhancements))
+                           (format-customizers enhancements 'enhancement) '()))
+         (limiters     (if (and limiters (pair? limiters))
+                           (format-customizers limiters 'limiter) '()))
          (partial      (append '() enhancements limiters))
          (sorted       (sort partial string-ci<?))
          (joined       (if (null? sorted)
                         '()
                         (list (string-join sorted ", "))))
          (result    (append joined details)))
-    (dbg (dfmt "enhancements: " (pretty enhancements))
-         (dfmt "limiters: " (pretty limiters))
-         (dfmt "partial: " (pretty partial))
-         (dfmt "sorted: " (pretty sorted))
-         (dfmt "result: " (pretty result)))
+    (dbg (dfmt "enhancements: " (pretty enhancements) nl)
+         (dfmt "limiters: " (pretty limiters) nl)
+         (dfmt "partial: " (pretty partial) nl)
+         (dfmt "sorted: " (pretty sorted)nl )
+         (dfmt "result: " (pretty result) nl))
     (if (every null? result)
         #f
         (string-join result "; "))))
 
   
 (define (process-attribute attribute)
-  (dbg (dfmt "process-attribute: " (pretty attribute)))
+  (dbg (dfmt "process-attribute: " (pretty attribute) nl))
   ;; returns the cost of the attribute
   (let* ((name         (must-exist "name" attribute))
          (level        (may-exist "level" attribute))
@@ -262,7 +262,7 @@
     points))
 
 (define (process-defect defect)
-  (dbg (dfmt "process-defect: " (pretty defect)))
+  (dbg (dfmt "process-defect: " (pretty defect) nl))
   ;; Returns the cost of the defect
   (let* ((name        (must-exist "name" defect))
          (rank        (must-exist "rank" defect))
@@ -277,7 +277,7 @@
     points))
 
 (define (process-skill skill)
-  (dbg (dfmt "process-skill: " (pretty skill)))
+  (dbg (dfmt "process-skill: " (pretty skill) nl))
   ;; Returns the cost of the skill.
   (let* ((name            (must-exist "name" skill))
          (level           (must-exist "level" skill))
@@ -298,7 +298,7 @@
     (string-ci<? a-name b-name)))
 
 (define (process-entity entity entity-no)
-  (dbg (dfmt "process-entity: " (pretty entity)))
+  (dbg (dfmt "process-entity: " (pretty entity) nl))
   ;; It might be a template, an item, or a full character.
   (let ((stats-total 0)
         (attributes-total 0)
@@ -405,7 +405,7 @@
        " (" (must-exist "points" stat) " CP)"))
 
 (define (process-derived-terse derived)
-  (dbg (dfmt "process-derived-terse: " (pretty derived)))
+  (dbg (dfmt "process-derived-terse: " (pretty derived) nl))
   ;; There are no points.
   (let* ((name          (must-exist "name" derived))
          (value         (must-exist "value" derived))
@@ -418,7 +418,7 @@
     (show #t name " " (displayed value) (if alternatives alternatives ""))))
 
 (define (process-attribute-terse attribute)
-  (dbg (dfmt "process-attribute-terse: " (pretty attribute)))
+  (dbg (dfmt "process-attribute-terse: " (pretty attribute) nl))
   ;; returns the cost of the attribute
   (let* ((name         (must-exist "name" attribute))
          (level        (may-exist "level" attribute))
@@ -435,7 +435,7 @@
          (displayed points) " CP)")))
 
 (define (process-defect-terse defect)
-  (dbg (dfmt "process-defect-terse: " (pretty defect)))
+  (dbg (dfmt "process-defect-terse: " (pretty defect) nl))
   ;; Returns the cost of the defect
   (let* ((name        (must-exist "name" defect))
          (rank        (must-exist "rank" defect))
@@ -446,7 +446,7 @@
          (displayed points) " CP)")))
 
 (define (process-skill-terse skill)
-  (dbg (dfmt "process-skill-terse: " (pretty skill)))
+  (dbg (dfmt "process-skill-terse: " (pretty skill) nl))
   ;; Returns the cost of the skill.
   (let* ((name            (must-exist "name" skill))
          (level           (must-exist "level" skill))
@@ -460,7 +460,7 @@
          (displayed points) " SP)")))
 
 (define (process-entity-terse entity entity-no)
-  (dbg (dfmt "process-entity-terse: " (pretty entity)))
+  (dbg (dfmt "process-entity-terse: " (pretty entity) nl))
   ;; It might be a template, an item, or a full character.
   (let* ((entity-name (may-exist "name" entity))
          (tagline     (may-exist "tagline" entity))
