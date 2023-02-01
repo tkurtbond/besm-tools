@@ -216,13 +216,25 @@
                    (show #f (displayed name) " "
                          (if (eq? type 'enhancement) "-" "+")
                          (displayed counts-as))]
+                  [((? string? name) (? number? counts-as) (? string? applies-to))
+                   (show #f (displayed name) ": " (displayed applies-to) " "
+                         (if (eq? type 'enhancement) "-" "+")
+                         (displayed counts-as))]
+                  [((? string? name) (? number? counts-as) . applies-to)
+                   (show #f (displayed name) ": "
+                         (joined displayed applies-to ", ") " "
+                         (if (eq? type 'enhancement) "-" "+")
+                         (displayed counts-as))]
                   [_ (error 'format-customizers
                             "do not understand customizer" item)])))
 
-(define (make-attribute-details details enhancements limiters)
+(define (make-attribute-details details enhancements limiters elements)
   (dbg (dfmt "make-attribute-details: details: " details
              " enhancements: " enhancements " limiters: " limiters nl))
-  (let* ((details      (if details   (list (string-trim-both details)) '()))
+  (let* ((details      (if details (list (string-trim-both details)) '()))
+         (elements     (if elements
+                           (list (string-join (sort elements string-ci<?) ", "))
+                           '()))
          (enhancements (if (and enhancements (pair? enhancements))
                            (format-customizers enhancements 'enhancement) '()))
          (limiters     (if (and limiters (pair? limiters))
@@ -230,9 +242,9 @@
          (partial      (append '() enhancements limiters))
          (sorted       (sort partial string-ci<?))
          (joined       (if (null? sorted)
-                        '()
-                        (list (string-join sorted ", "))))
-         (result    (append joined details)))
+                           '()
+                           (list (string-join sorted ", "))))
+         (result       (append elements joined details)))
     (dbg (dfmt "enhancements: " (pretty enhancements) nl)
          (dfmt "limiters: " (pretty limiters) nl)
          (dfmt "partial: " (pretty partial) nl)
@@ -256,7 +268,9 @@
          (level        (if effective (show #f level "(" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
-         (details      (make-attribute-details details enhancements limiters))
+         (elements     (may-exist  "elements" attribute))
+         (details      (make-attribute-details details enhancements limiters
+                                               elements))
          (description (if details (show #f name " (" details ")") name)))
     (row3 level points description)
     points))
@@ -430,7 +444,9 @@
          (level        (if effective (show #f level "(" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
-         (details      (make-attribute-details details enhancements limiters)))
+         (elements     (may-exist  "elements" attribute))
+         (details      (make-attribute-details details enhancements limiters
+                                               elements)))
     (show #t name " " level " (" (if details (string-append details ". ") "")
          (displayed points) " CP)")))
 
