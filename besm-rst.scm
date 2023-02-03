@@ -95,6 +95,7 @@
 	 (let ((var (cdr val)))
 	   b1 ...))))))
 
+
 (define (space-to-newline s)
   (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
 
@@ -416,6 +417,7 @@
     (sep3)
     (show #t nl)
     ))
+
 
 (define (total-points items)
   (loop for item in items sum (must-exist "points" item)))
