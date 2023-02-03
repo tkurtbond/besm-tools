@@ -95,20 +95,26 @@
 	 (let ((var (cdr val)))
 	   b1 ...))))))
 
+(define (space-to-newline s)
+  (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
+
 (define (bold s)
+  ;; Always bold
   (cond
    ((string-null? s) s)
    (else (show #f "**" s "**"))))
 
-(define (italicize s)
-  (cond
-   ((string-null? s) s)
-   (else (show #f "*" s "*"))))
-
-(define (table-bold s)
+(define (bolding s)
+  ;; Only bold if the command line option for bolding has been set.
+  ;; This generally happens in headers in reST table output.
   (if *bolding*
       (bold s)
       s))
+
+(define (italics s)
+  (cond
+   ((string-null? s) s)
+   (else (show #f "*" s "*"))))
 
 (define (separator-line num-columns sep c)
   ;; The last column is the description, and absorbs any unused space.
@@ -329,7 +335,7 @@
         (show #t entity-name nl underline nl nl)))
 
     (when-in-alist (tagline "tagline" entity)
-      (show #t (italicize (string-trim-both tagline)) nl nl))
+      (show #t (italics (string-trim-both tagline)) nl nl))
 
     (unless *omit-entity-description*
       (when-in-alist (description "description" entity)
@@ -340,20 +346,20 @@
 
     (when-in-alist (stats "stats" entity)
       (sep3)
-      (row3 (table-bold "VALUE") (table-bold "POINTS") (table-bold "STAT"))
+      (row3 (bolding "VALUE") (bolding "POINTS") (bolding "STAT"))
       (headsep3)
       (set! stats-total
         (loop for stat in stats sum (process-stat stat) do (sep3)))
       (when *show-subtotals*
-        (row3 "" (table-bold (number->string stats-total))
-              (table-bold "STATS TOTAL"))
+        (row3 "" (bolding (number->string stats-total))
+              (bolding "STATS TOTAL"))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (derived "derived" entity)
       (sep2)
-      (row2 (table-bold "VALUE") (table-bold "DERIVED VALUE"))
+      (row2 (bolding "VALUE") (bolding "DERIVED VALUE"))
       (headsep2)
       (loop for d in derived do (process-derived d) do (sep2))
       (cond (*one-table* (empty))
@@ -361,44 +367,44 @@
 
     (when-in-alist (attributes "attributes" entity)
       (sep3)
-      (row3 (table-bold "LEVEL") (table-bold "POINTS") (table-bold "ATTRIBUTE"))
+      (row3 (bolding "LEVEL") (bolding "POINTS") (bolding "ATTRIBUTE"))
       (headsep3)
       (set! attributes-total
         (loop for attribute in (sort attributes name-ci<?)
               sum (process-attribute attribute)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (table-bold (number->string attributes-total))
-              (table-bold "ATTRIBUTES TOTAL"))
+        (row3 "" (bolding (number->string attributes-total))
+              (bolding "ATTRIBUTES TOTAL"))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row3 (table-bold "RANK") (table-bold "POINTS") (table-bold "DEFECT"))
+      (row3 (bolding "RANK") (bolding "POINTS") (bolding "DEFECT"))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect defect)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (table-bold (number->string defects-total))
-              (table-bold "DEFECTS TOTAL"))
+        (row3 "" (bolding (number->string defects-total))
+              (bolding "DEFECTS TOTAL"))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (skills "skills" entity)
       (sep3)
-      (row3 (table-bold "LEVEL") (table-bold "POINTS") (table-bold "SKILL"))
+      (row3 (bolding "LEVEL") (bolding "POINTS") (bolding "SKILL"))
       (headsep3)
       (set! skills-total
         (loop for skill in (sort skills name-ci<?)
               sum (process-skill skill)
               do (sep3)))
-      (row3 "" (table-bold (number->string skills-total))
-            (table-bold "SKILL POINTS TOTAL"))
+      (row3 "" (bolding (number->string skills-total))
+            (bolding "SKILL POINTS TOTAL"))
       (sep3)
       (cond (*one-table* (empty))
             (else (show #t nl))))
@@ -406,7 +412,7 @@
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (row3 "" (table-bold (number->string entity-total)) (table-bold "TOTAL"))
+    (row3 "" (bolding (number->string entity-total)) (bolding "TOTAL"))
     (sep3)
     (show #t nl)
     ))
@@ -510,7 +516,7 @@
            (show #t (displayed entity-total) " CP" nl nl)))
 
     (when tagline
-      (show #t (italicize (string-trim-both tagline)) nl nl))
+      (show #t (italics (string-trim-both tagline)) nl nl))
 
     (when (and description (not *omit-entity-description*))
       (show #t description nl nl))
@@ -570,6 +576,217 @@
             do (process-skill-terse skill)))
     ))
 
+
+(define (tbold s)                       ; Troff bold.
+  (cond
+   ((string-null? s) s)
+   (else (string-append "\\fB" s "\\fP"))))
+
+(define (titalics s)                     ; Troff italics.
+  (cond
+   ((string-null? s) s)
+   (else (string-append "\\fI" s "\\fP*"))))
+
+(define *raw-prefix* "   ")             ;
+
+(define (process-stat-raw-ms stat)
+  (dbg (dfmt "process-stat-raw-ms: " (pretty stat) nl))
+  (let ((name   (must-exist "name" stat))
+        (value  (must-exist "value" stat))
+        (points (must-exist "points" stat)))
+    (show #t *raw-prefix* value "#" points "#" name nl)
+    points))
+
+(define (process-derived-raw-ms derived)
+  (dbg (dfmt "process-derived-raw-ms: " (pretty derived) nl))
+  ;; There are no points.
+  (let* ((name          (must-exist "name" derived))
+         (expansion     (may-exist name derived-abbreviations))
+         (name          (if expansion expansion name))
+         (value         (must-exist "value" derived))
+         (alternatives  (may-exist "alternatives" derived))
+         (description   (if alternatives
+                            (string-append name " ("
+                                           (string-join alternatives ", ")
+                                           ")")
+                            name)))
+    (show #t *raw-prefix* value "#T{" nl
+          *raw-prefix* description nl
+          *raw-prefix* "T}" nl)))
+
+(define (process-attribute-raw-ms attribute)
+  (dbg (dfmt "process-attribute-raw-ms: " (pretty attribute) nl))
+  ;; returns the cost of the attribute
+  (let* ((name         (must-exist "name" attribute))
+         (level        (may-exist "level" attribute))
+         (level        (if level level ""))
+         (points       (must-exist "points" attribute))
+         (details      (may-exist  "details" attribute))
+         (details      (if details (string-trim-both details) details))
+         (effective    (may-exist  "effective" attribute))
+         (level        (if effective (show #f level "(" effective ")") level))
+         (enhancements (may-exist  "enhancements" attribute))
+         (limiters     (may-exist  "limiters" attribute))
+         (elements     (may-exist  "elements" attribute))
+         (details      (make-attribute-details details enhancements limiters
+                                               elements))
+         (description (if details (show #f name " ("
+                                        (space-to-newline details) ")") name)))
+    (show #t *raw-prefix* level "#" points "#T{" nl
+          *raw-prefix* description nl
+          *raw-prefix* "T}" nl)
+    points))
+
+(define (process-defect-raw-ms defect)
+  (dbg (dfmt "process-defect-raw-ms: " (pretty defect) nl))
+  ;; Returns the cost of the defect
+  (let* ((name        (must-exist "name" defect))
+         (rank        (must-exist "rank" defect))
+         (points      (must-exist "points" defect))
+         (details     (may-exist  "details" defect))
+         (details     (if details (string-trim-both details) details))
+         (description (if details (show #f name " ("
+                                        (space-to-newline details) ")") name))
+         )
+    (show #t *raw-prefix* rank "#" points "#T{" nl
+          *raw-prefix* description nl
+          *raw-prefix* "T}" nl)
+    points))
+
+(define (process-skill-raw-ms skill)
+  (dbg (dfmt "process-skill-raw-ms: " (pretty skill) nl))
+  ;; Returns the cost of the skill.
+  (let* ((name            (must-exist "name" skill))
+         (level           (must-exist "level" skill))
+         (points          (must-exist "points" skill))
+         (specialisations (may-exist "specialisations" skill))
+         (description     (show #f name (if specialisations
+                                            (string-append
+                                             " ("
+                                             (string-join specialisations ", ")
+                                             ")")
+                                            ""))))
+    (show #t *raw-prefix* level "#"  points "#T{" nl
+          *raw-prefix* description nl
+          *raw-prefix* "T}" nl)
+    points))
+
+(define (process-entity-raw-ms entity entity-no)
+  (dbg (dfmt "process-entity-raw-ms: " (pretty entity) nl))
+  ;; It might be a template, an item, or a full character.
+  (let ((paragraph-seen #f)
+        (first-section-seen #f)
+        (stats-total 0)
+        (attributes-total 0)
+        (defects-total 0)
+        (skills-total 0)                ; Not added to entity total!
+        (entity-total 0))
+
+    (when-in-alist (entity-name "name" entity)
+      (let ((underline (make-string (string-length entity-name)
+                                    (if (and (> entity-no 1)
+                                             *subunderliner*)
+                                        *subunderliner*
+                                        *underliner*))))
+        (show #t entity-name nl underline nl nl)))
+
+    (when-in-alist (tagline "tagline" entity)
+      (set! paragraph-seen #t)
+      (show #t (titalics (string-trim-both tagline)) nl nl))
+
+    (unless *omit-entity-description*
+      (when-in-alist (description "description" entity)
+        (set! paragraph-seen #t)
+        (show #t description nl nl)))
+  
+    (when-in-alist (size "size" entity)
+      (set! paragraph-seen #t)
+      (show #t (bold "Size:") " " size nl nl))
+
+    (show #t ".. raw:: ms" nl nl)
+    ;; groff output from here to the end of this function.
+
+    (unless paragraph-seen
+      (show #t *raw-prefix* ".LP" nl))
+
+    (show #t *raw-prefix* ".TS" nl)
+    (show #t *raw-prefix* "tab(#) ;" nl)
+
+    (when-in-alist (stats "stats" entity)
+      (set! first-section-seen #t)
+      (show #t *raw-prefix* "c c lx ." nl)
+      (show #t *raw-prefix* "=" nl)
+      (show #t *raw-prefix* (tbold "VALUE") "#" (tbold "POINTS") "#"
+            (tbold "STAT") nl)
+      (set! stats-total
+        (loop for stat in stats sum (process-stat-raw-ms stat)))
+      (when *show-subtotals*
+        (show #t *raw-prefix* "#" (tbold (number->string stats-total)) "#"
+              (tbold "STATS TOTAL") nl))
+      (show #t *raw-prefix* nl))
+
+    (when-in-alist (derived "derived" entity)
+      (cond (first-section-seen
+             (show #t *raw-prefix* ".T&" nl))
+            (else (set! first-section-seen #t)))
+      (show #t *raw-prefix* "c l sx ." nl)
+      (show #t *raw-prefix* (tbold "VALUE") "#" (tbold "DERIVED VALUE") nl)
+      (loop for d in derived do (process-derived-raw-ms d))
+      (show #t *raw-prefix* nl))
+
+    (when-in-alist (attributes "attributes" entity)
+      (cond (first-section-seen
+             (show #t *raw-prefix* ".T&" nl))
+            (else (set! first-section-seen #F)))
+      (show #t *raw-prefix* "c c lx ." nl)
+      (show #t *raw-prefix* (tbold "LEVEL") "#" (tbold "POINTS") "#"
+            (tbold "ATTRIBUTE") nl)
+      (set! attributes-total
+        (loop for attribute in (sort attributes name-ci<?)
+              sum (process-attribute-raw-ms attribute)))
+      (when *show-subtotals*
+        (show #t *raw-prefix* "#" (tbold (number->string attributes-total)) "#" 
+              (tbold "ATTRIBUTES TOTAL") nl))
+      (show #t *raw-prefix* nl))
+
+    (when-in-alist (defects "defects" entity)
+      (cond (first-section-seen
+             (show #t *raw-prefix* ".T&" nl))
+            (else (set! first-section-seen #F)))
+      (show #t *raw-prefix* "c c lx ." nl)
+      (show #t *raw-prefix* (tbold "RANK") "#" (tbold "POINTS") "#" (tbold "DEFECT") nl)
+      (set! defects-total 
+        (loop for defect in (sort defects name-ci<?)
+              sum (process-defect-raw-ms defect)))
+      (when *show-subtotals*
+        (show #t *raw-prefix* "#" (tbold (number->string defects-total)) "#"
+              (tbold "DEFECTS TOTAL") nl))
+      (show #t *raw-prefix* nl))
+
+    (when-in-alist (skills "skills" entity)
+      (cond (first-section-seen
+             (show #t *raw-prefix* ".T&" nl))
+            (else (set! first-section-seen #F)))
+      (show #t *raw-prefix* "c c lx ." nl)
+      (show #t *raw-prefix* (tbold "LEVEL") "#" (tbold "POINTS") "#"
+            (tbold "SKILL") nl)
+      (set! skills-total
+        (loop for skill in (sort skills name-ci<?)
+              sum (process-skill-raw-ms skill)))
+      (show #t *raw-prefix* "#" (tbold (number->string skills-total)) "#"
+            (tbold "SKILL POINTS TOTAL") nl)
+      (show #t *raw-prefix* nl))
+
+    ;; Output total.
+    (set! entity-total (+ stats-total attributes-total defects-total))
+    (when (> entity-total 0)
+      (show #t *raw-prefix* "#" (tbold (number->string entity-total)) "#"
+            (tbold "TOTAL") nl))
+    (show #t *raw-prefix* "=" nl)
+    (show #t *raw-prefix* ".TE" nl)
+    ))
+
+
 (define (process-file)
   ;;; It is a file of possibly multiple entities.
   (let ((entities (yaml-load (current-input-port))))
@@ -617,12 +834,16 @@ as that looks better.")
   (list (args:make-option
          (b bold) #:none "Turn OFF bolding of headers."
          (set! *bolding* #f))
+        ;; c is reserved for raw ConTeXt output.
         (args:make-option
          (d debug) #:none "Turn on debugging."
          (set! *debugging* #t))
         (args:make-option
          (D omit-description) #:none "Omit the entiy description."
          (set! *omit-entity-description* #t))
+        (args:make-option
+         (m raw-ms-tables) #:none "Use groff tbl output in a raw ms block."
+         (set! *output-formatter* process-entity-raw-ms))
         (args:make-option
          (h help) #:none "Display this text."
          (usage))
