@@ -889,6 +889,8 @@ as that looks better.")
          (with-input-from-port (current-input-port) process-file)
          (loop for filename in operands do (process-filename filename)))))
 
+;; Only invoke main if this has been compiled.  That way we can load the
+;; module into csi and debug it. 
 (cond-expand
   ((and chicken-5 compiling)
    (main))
