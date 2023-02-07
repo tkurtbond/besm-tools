@@ -807,7 +807,7 @@
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
-      (print (args:usage *command-line-options*))
+      (print (args:usage +command-line-options+))
       (newline)
       (print
        "Note: use -1 (or --one) if you are generating this for HTML output,
@@ -832,7 +832,7 @@ as that looks better.")
 (define *underliner* #\-)
 (define *subunderliner* #f)
 
-(define *command-line-options*
+(define +command-line-options+
   (list (args:make-option
          (b bold) #:none "Turn OFF bolding of headers."
          (set! *bolding* #f))
@@ -881,7 +881,7 @@ as that looks better.")
 
 (define (main)
   (receive (options operands) (args:parse (command-line-arguments)
-                                          *command-line-options*)
+                                          +command-line-options+)
     ;; This outputs reST, so bolding is two asterisks on each side.
     (set! *num-width* (+ *num-width* 4))
 
