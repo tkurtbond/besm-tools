@@ -13,11 +13,12 @@ PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
 TESTDATA=$(wildcard test-data/*.yaml)
 TESTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .gen.rst,$(basename $(f) .yaml)))
 TESTTERSEOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -terse.gen.rst,$(basename $(f) .yaml)))
-STMTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml)))
-LETTEROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .ms.pdf,$(basename $(f) .yaml)))
-MSOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms,$(basename $(f) .yaml)))
-NATIVEOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .native,$(basename $(f) .yaml)))
-HTMLOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .html,$(basename $(f) .yaml)))
+TESTMSOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -ms.gen.rst,$(basename $(f) .yaml)))
+STMTOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -ms.stmt.ms.pdf,$(basename $(f) .yaml)))
+LETTEROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .ms.pdf,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -ms.ms.pdf,$(basename $(f) .yaml)))
+MSOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .ms,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -ms.ms,$(basename $(f) .yaml)))
+NATIVEOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .native,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -ms.native,$(basename $(f) .yaml)))
+HTMLOUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .html,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix -ms.html,$(basename $(f) .yaml)))
 YAMLERROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .yamlerr,$(basename $(f) .yaml)))
 
 all: build $(PROGRAMS)
@@ -28,7 +29,7 @@ $(wildcard build/*.gen.rst): build/besm-rst
 # for testing sorting.
 
 test:	build/besm-rst \
-	$(TESTOUTPUT) $(TESTTERSEOUTPUT)
+	$(TESTOUTPUT) $(TESTTERSEOUTPUT) $(TESTMSOUTPUT)
 
 RPBHENTITIES=FV2021-Coleopteran enyon-boase pawl-cardynham nessa-kitto
 RPBHGENRST=$(foreach e,$(RPBHENTITIES),build/$(addsuffix .gen.rst,$(e)))
@@ -65,10 +66,16 @@ build/%.gen.rst : test-data/%.yaml
 build/%-terse.gen.rst : test-data/%.yaml
 	build/besm-rst -t $(BROPTS) $< >$@
 
+build/%-ms.gen.rst : test-data/%.yaml
+	build/besm-rst -s -m $(BROPTS) $< >$@
+
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
 
 build/%.ms.pdf : build/%.gen.rst
+	pandoc -r rst -w ms --template=tkb -V twocolumns -o $@ $<
+
+build/%.ms : build/%.gen.rst
 	pandoc -r rst -w ms --template=tkb -V twocolumns -o $@ $<
 
 build/%.stmt.ms.pdf : build/%.gen.rst
