@@ -825,6 +825,7 @@ as that looks better.")
                      (string-length "POINTS")
                      ))
 (define *one-table* #f)
+(define *output-file* #f)
 (define *output-formatter* process-entity)
 (define *omit-entity-description* #f)
 (define *show-subtotals* #f)
@@ -846,6 +847,9 @@ as that looks better.")
         (args:make-option
          (m raw-ms-tables) #:none "Use groff tbl output in a raw ms block."
          (set! *output-formatter* process-entity-raw-ms))
+        (args:make-option
+         (o output) #:required "Output file."
+         (set! *output-file* arg))
         (args:make-option
          (h help) #:none "Display this text."
          (usage))
@@ -882,12 +886,17 @@ as that looks better.")
 (define (main)
   (receive (options operands) (args:parse (command-line-arguments)
                                           +command-line-options+)
-    ;; This outputs reST, so bolding is two asterisks on each side.
+    (define (process-operands)
+      (if  (zero? (length operands))
+           (with-input-from-port (current-input-port) process-file)
+           (loop for filename in operands do (process-filename filename))))
+
+    ;; When normally outputing reST bolding is two asterisks on each side.
     (set! *num-width* (+ *num-width* 4))
 
-    (if  (zero? (length operands))
-         (with-input-from-port (current-input-port) process-file)
-         (loop for filename in operands do (process-filename filename)))))
+    (if *output-file*
+        (with-output-to-file *output-file* process-operands)
+        (process-operands))))
 
 ;; Only invoke main if this has been compiled.  That way we can load the
 ;; module into csi and debug it. 
