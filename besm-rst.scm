@@ -728,19 +728,23 @@
       (show #t *raw-prefix* nl))
 
     (when-in-alist (derived "derived" entity)
-      (cond (first-section-seen
-             (show #t *raw-prefix* ".T&" nl))
-            (else (set! first-section-seen #t)))
+      (when first-section-seen
+        (show #t *raw-prefix* ".T&" nl))
       (show #t *raw-prefix* "c l sx ." nl)
+      (unless first-section-seen
+        (set! first-section-seen #t)
+        (show #t *raw-prefix* "=" nl))
       (show #t *raw-prefix* (tbold "VALUE") "#" (tbold "DERIVED VALUE") nl)
       (loop for d in derived do (process-derived-raw-ms d))
       (show #t *raw-prefix* nl))
 
     (when-in-alist (attributes "attributes" entity)
-      (cond (first-section-seen
-             (show #t *raw-prefix* ".T&" nl))
-            (else (set! first-section-seen #F)))
+      (when first-section-seen
+        (show #t *raw-prefix* ".T&" nl))
       (show #t *raw-prefix* "c c lx ." nl)
+      (unless first-section-seen
+        (set! first-section-seen #t)
+        (show #t *raw-prefix* "=" nl))
       (show #t *raw-prefix* (tbold "LEVEL") "#" (tbold "POINTS") "#"
             (tbold "ATTRIBUTE") nl)
       (set! attributes-total
@@ -752,10 +756,12 @@
       (show #t *raw-prefix* nl))
 
     (when-in-alist (defects "defects" entity)
-      (cond (first-section-seen
-             (show #t *raw-prefix* ".T&" nl))
-            (else (set! first-section-seen #F)))
+      (when first-section-seen
+        (show #t *raw-prefix* ".T&" nl))
       (show #t *raw-prefix* "c c lx ." nl)
+      (unless first-section-seen
+        (set! first-section-seen #t)
+        (show #t *raw-prefix* "=" nl))
       (show #t *raw-prefix* (tbold "RANK") "#" (tbold "POINTS") "#" (tbold "DEFECT") nl)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
@@ -766,10 +772,12 @@
       (show #t *raw-prefix* nl))
 
     (when-in-alist (skills "skills" entity)
-      (cond (first-section-seen
-             (show #t *raw-prefix* ".T&" nl))
-            (else (set! first-section-seen #F)))
+      (when first-section-seen
+        (show #t *raw-prefix* ".T&" nl))
       (show #t *raw-prefix* "c c lx ." nl)
+      (unless first-section-seen
+        (set! first-section-seen #t)
+        (show #t *raw-prefix* "=" nl))
       (show #t *raw-prefix* (tbold "LEVEL") "#" (tbold "POINTS") "#"
             (tbold "SKILL") nl)
       (set! skills-total
