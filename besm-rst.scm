@@ -24,12 +24,15 @@
 ;;;   enhancements as negative and limiters as positive.
 ;;;   
 ;;; - At this time I don't plan to calculate the points values of
-;;;   anything.  The person entering the YAML version of the template
-;;;   or character has to add up and enter the points themselves.
-;;;   This way we don't have to do any calculations.  Enhancement and
-;;;   limiters that count as more than one get entered (if the person
-;;;   is interested) so the program can display the "Enhancement -X"
-;;;   or "Limiter +X" if desired.  Still no calculation of points.
+;;;   individual attributes, defects, or skills The person entering
+;;;   the YAML version of the template or character has to add up and
+;;;   enter the points for those themselves. This way we don't have to
+;;;   do any calculations on the individual items. Enhancement and limiters that count as more
+;;;   than one get entered (if the person is interested) so the
+;;;   program can display the "Enhancement -X" or "Limiter +X" if
+;;;   desired. Still no calculation of points.
+;;;
+;;; - Except I lie: we do caculate total points.
 ;;;   
 ;;; - Haven't decided yet if weapons or armour should be entered as
 ;;;   templates, but I'm leaning towards NOT.
