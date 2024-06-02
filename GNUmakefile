@@ -6,7 +6,7 @@ endif
 BROPTS=
 
 # besm-totals is retired.
-INSTALL_PROGRAMS=besm-rst
+INSTALL_PROGRAMS=besm4-rst
 OTHER_PROGRAMS=
 PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
 
@@ -23,12 +23,12 @@ YAMLERROUTPUT=$(foreach f,$(notdir $(TESTDATA)),build/$(addsuffix .yamlerr,$(bas
 
 all: build $(PROGRAMS)
 
-$(wildcard build/*.gen.rst): build/besm-rst
+$(wildcard build/*.gen.rst): build/besm4-rst
 
 # Note: enyon-boase.yaml has attributes, defects, and skills out of order,
 # for testing sorting.
 
-test:	build/besm-rst \
+test:	build/besm4-rst \
 	$(TESTOUTPUT) $(TESTTERSEOUTPUT) $(TESTMSOUTPUT)
 
 RPBHENTITIES=FV2021-Coleopteran enyon-boase pawl-cardynham nessa-kitto
@@ -58,16 +58,16 @@ install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
 #??? .INTERMEDIATE: $(wildcard build/*.gen.rst)
 
 #build/%.gen.rst : test-data/%.dat
-#	build/besm-rst $(BROPTS) $< >$@
+#	build/besm4-rst $(BROPTS) $< >$@
 
 build/%.gen.rst : test-data/%.yaml
-	build/besm-rst $(BROPTS) $< >$@
+	build/besm4-rst $(BROPTS) $< >$@
 
 build/%-terse.gen.rst : test-data/%.yaml
-	build/besm-rst -t $(BROPTS) $< >$@
+	build/besm4-rst -t $(BROPTS) $< >$@
 
 build/%-ms.gen.rst : test-data/%.yaml
-	build/besm-rst -s -m $(BROPTS) $< >$@
+	build/besm4-rst -s -m $(BROPTS) $< >$@
 
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
