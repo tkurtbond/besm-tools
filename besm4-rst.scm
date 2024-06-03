@@ -503,9 +503,9 @@
          (stats-total      (if stats (total-points stats) 0))
          (attributes-total (if attributes (total-points attributes) 0))
          (defects-total    (if defects (total-points defects) 0))
-         ;; Not added to entity total!
+         ;; Skills are not added to entity total!
          (skills-total     (if skills (total-points skills) 0))
-         (entity-total     (+ attributes-total defects-total))
+         (entity-total     (+ stats-total attributes-total defects-total))
          )
 
     (cond (entity-name
