@@ -99,6 +99,13 @@
 	   b1 ...))))))
 
 
+(define mecha? (make-parameter #f))
+
+(define (label-points points)
+  (show #f (abs points) (if (mecha?)
+                            (if (< points 0) " MBP" " MP")
+                            (if (< points 0) " BP" " CP"))))
+
 (define (space-to-newline s)
   (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
 
@@ -427,7 +434,7 @@
 
 (define (process-stat-terse stat)
   (show #t (must-exist "name" stat) " " (must-exist "value" stat)
-       " (" (must-exist "points" stat) " CP)"))
+        " (" (label-points (must-exist "points" stat))  ")"))
 
 (define (process-derived-terse derived)
   (dbg (dfmt "process-derived-terse: " (pretty derived) nl))
@@ -459,7 +466,7 @@
          (details      (make-attribute-details details enhancements limiters
                                                elements)))
     (show #t name " " level " (" (if details (string-append details ". ") "")
-         (displayed points) " CP)")))
+          (label-points points) ")")))
 
 (define (process-defect-terse defect)
   (dbg (dfmt "process-defect-terse: " (pretty defect) nl))
@@ -469,7 +476,7 @@
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
     (show #t name " (" (if details (string-append details ".  ") "")
-         (displayed points) " CP)")))
+          (label-points points) ")")))
 
 (define (process-skill-terse skill)
   (dbg (dfmt "process-skill-terse: " (pretty skill) nl))
@@ -508,8 +515,7 @@
 
     (cond (entity-name
            (let* ((entity-header (show #f entity-name " ("
-                                       (displayed entity-total)
-                                      " CP)"))
+                                       (label-points entity-total) ")"))
                   (underline (make-string (string-length entity-header)
                                           (if (and (> entity-no 1)
                                                    *subunderliner*)
@@ -517,7 +523,7 @@
                                               *underliner*))))
              (show #t entity-header nl underline nl nl)))
           (else
-           (show #t (displayed entity-total) " CP" nl nl)))
+           (show #t (label-points entity-total) nl nl)))
 
     (when tagline
       (show #t (italics (string-trim-both tagline)) nl nl))
@@ -531,7 +537,7 @@
     (when stats
       (show #t (bold "Statistics"))
       (when *show-subtotals*
-        (show #t " (" (displayed stats-total) " CP) "))
+        (show #t " (" (label-points stats-total) ") "))
       (show #t " — " nl)
       (loop for stat in stats
             for i from 1
@@ -550,7 +556,7 @@
     (when attributes
       (show  #t (bold "Attributes"))
       (when *show-subtotals*
-        (show #t " (" (displayed attributes-total) " CP)"))
+        (show #t " (" (label-points attributes-total) " )"))
       (show #t " — " nl)
       (loop for attribute in (sort attributes name-ci<?)
             for i from 1
@@ -561,7 +567,7 @@
     (when defects
       (show #t (bold "Defects"))
       (when *show-subtotals*
-        (show #t " (" (displayed defects-total) " CP)"))
+        (show #t " (" (label-points defects-total) ")"))
       (show #t " — " nl)
       (loop for defect in (sort defects name-ci<?)
             for i from 1
@@ -797,13 +803,13 @@
     (show #t *raw-prefix* ".TE" nl)
     ))
 
-
 (define (process-file)
-  ;;; It is a file of possibly multiple entities.
+;;; It is a file of possibly multiple entities.
   (let ((entities (yaml-load (current-input-port))))
     (loop for entity in entities
           for entity-no from 1
-          do (*output-formatter* entity entity-no))))
+          do (parameterize ((mecha? (assoc "mecha" entity)))
+               (*output-formatter* entity entity-no)))))
 
 
 (define (process-filename filename)
