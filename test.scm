@@ -1,5 +1,7 @@
+(import yaml)
+
 (define fv2021 (car (call-with-input-file
-                        "test-data/FV2021-Coleopteran.yaml" yaml-load)))
+                        "test-data/FV2021-Coleopteran-2e.yaml" yaml-load)))
 (pp fv2021)
 
 (define fv2021-attributes (must-exist "attributes" fv2021))
