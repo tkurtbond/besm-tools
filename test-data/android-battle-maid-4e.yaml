@@ -34,7 +34,7 @@
       details: 10 * Body metres
     - name: "Power Flux: Skill Flux"
       level: 1
-      effecttive: 2
+      effective: 2
       points: 10
       details: "Equipment: Programmes +1"
     - name: Resilient

@@ -276,7 +276,7 @@
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
-         (level        (if effective (show #f level "(" effective ")") level))
+         (level        (if effective (show #f level " (" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
          (elements     (may-exist  "elements" attribute))
@@ -453,7 +453,7 @@
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
-         (level        (if effective (show #f level "(" effective ")") level))
+         (level        (if effective (show #f level " (" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
          (elements     (may-exist  "elements" attribute))
@@ -480,11 +480,11 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t name " (" (if specialisations
-                          (string-append
-                           (string-join specialisations ", ")
-                           ".  ")
-                          "")
+    (show #t name " " level " (" (if specialisations
+                                     (string-append
+                                      (string-join specialisations ", ")
+                                      ".  ")
+                                     "")
          (displayed points) " SP)")))
 
 (define (process-entity-terse entity entity-no)
@@ -630,7 +630,7 @@
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
-         (level        (if effective (show #f level "(" effective ")") level))
+         (level        (if effective (show #f level " (" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
          (elements     (may-exist  "elements" attribute))

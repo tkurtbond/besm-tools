@@ -276,7 +276,7 @@
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
-         (level        (if effective (show #f level "(" effective ")") level))
+         (level        (if effective (show #f level " (" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
          (elements     (may-exist  "elements" attribute))
@@ -290,14 +290,13 @@
   (dbg (dfmt "process-defect: " (pretty defect) nl))
   ;; Returns the cost of the defect
   (let* ((name        (must-exist "name" defect))
-         (rank        (must-exist "rank" defect))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details))
          (description (if details (show #f name " (" details ")") name))
          )
     (dbg (dfmt "process-defect: before row3" nl))
-    (row3 rank points description)
+    (row2 points description)
     (dbg (dfmt "process-defect: after row3" nl))
     points))
 
@@ -387,16 +386,16 @@
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row3 (bolding "RANK") (bolding "POINTS") (bolding "DEFECT"))
+      (row2 (bolding "POINTS") (bolding "DEFECT"))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect defect)
-              do (sep3)))
+              do (sep2)))
       (when *show-subtotals*
-        (row3 "" (bolding (number->string defects-total))
+        (row2 (bolding (number->string defects-total))
               (bolding "DEFECTS TOTAL"))
-        (sep3))
+        (sep2))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
@@ -453,7 +452,7 @@
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
-         (level        (if effective (show #f level "(" effective ")") level))
+         (level        (if effective (show #f level " (" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
          (elements     (may-exist  "elements" attribute))
@@ -466,7 +465,6 @@
   (dbg (dfmt "process-defect-terse: " (pretty defect) nl))
   ;; Returns the cost of the defect
   (let* ((name        (must-exist "name" defect))
-         (rank        (must-exist "rank" defect))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
@@ -480,11 +478,11 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t name " (" (if specialisations
-                          (string-append
-                           (string-join specialisations ", ")
-                           ".  ")
-                          "")
+    (show #t name " " level " (" (if specialisations
+                                     (string-append
+                                      (string-join specialisations ", ")
+                                      ".  ")
+                                     "")
          (displayed points) " SP)")))
 
 (define (process-entity-terse entity entity-no)
@@ -630,7 +628,7 @@
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
-         (level        (if effective (show #f level "(" effective ")") level))
+         (level        (if effective (show #f level " (" effective ")") level))
          (enhancements (may-exist  "enhancements" attribute))
          (limiters     (may-exist  "limiters" attribute))
          (elements     (may-exist  "elements" attribute))
@@ -647,14 +645,13 @@
   (dbg (dfmt "process-defect-raw-ms: " (pretty defect) nl))
   ;; Returns the cost of the defect
   (let* ((name        (must-exist "name" defect))
-         (rank        (must-exist "rank" defect))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details))
          (description (if details (show #f name " ("
                                         (space-to-newline details) ")") name))
          )
-    (show #t *raw-prefix* rank "#" points "#T{" nl
+    (show #t *raw-prefix* "#" points "#T{" nl
           *raw-prefix* description nl
           *raw-prefix* "T}" nl)
     points))
@@ -766,7 +763,7 @@
       (unless first-section-seen
         (set! first-section-seen #t)
         (show #t *raw-prefix* "=" nl))
-      (show #t *raw-prefix* (tbold "RANK") "#" (tbold "POINTS") "#" (tbold "DEFECT") nl)
+      (show #t *raw-prefix* "#" (tbold "POINTS") "#" (tbold "DEFECT") nl)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect-raw-ms defect)))
