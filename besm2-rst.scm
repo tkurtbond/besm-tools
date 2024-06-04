@@ -114,9 +114,10 @@
   (each "**" (each-in-list args) "**"))
 
 ;; Only bold if the command line option for bolding has been set. This
-;; generally happens in headers in reST table output. A formatter that
-;; works with SRFI 166: Monadic Formatting, which means it has to be
-;; used within the arguments to a call to show.
+;; generally happens in headers in reST table output and in attribute
+;; and defect names and levels in terse mode. A formatter that works
+;; with SRFI 166: Monadic Formatting, which means it has to be used
+;; within the arguments to a call to show.
 (define (bolding . args)
   (if *bolding*
       (bold (each-in-list args))
@@ -475,7 +476,8 @@
          (elements     (may-exist  "elements" attribute))
          (details      (make-attribute-details details enhancements limiters
                                                elements)))
-    (show #t name " " level " (" (if details (string-append details ". ") "")
+    (show #t (bolding name " " level) " ("
+          (if details (string-append details ". ") "")
           (label-points points) ")")))
 
 (define (process-defect-terse defect)
@@ -485,7 +487,7 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
-    (show #t name " (" (if details (string-append details ".  ") "")
+    (show #t (bolding name) " (" (if details (string-append details ".  ") "")
           (label-points points) ")")))
 
 (define (process-skill-terse skill)
@@ -495,7 +497,7 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t name " " level " (" (if specialisations
+    (show #t (bolding name " " level) " (" (if specialisations
                                      (string-append
                                       (string-join specialisations ", ")
                                       ".  ")
@@ -860,7 +862,10 @@ as that looks better.")
 
 (define +command-line-options+
   (list (args:make-option
-         (b bold) #:none "Turn OFF bolding of headers."
+            (b bold) #:none (show #f
+                                  "Turn OFF bolding of headers in plain
+                          reST headers and names and levels of
+                          attributes and defects in terse mode.")
          (set! *bolding* #f))
         ;; c is reserved for raw ConTeXt output.
         (args:make-option
