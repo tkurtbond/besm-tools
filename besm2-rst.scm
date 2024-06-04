@@ -107,18 +107,23 @@
 (define (space-to-newline s)
   (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
 
-(define (bold s)
-  ;; Always bold
-  (cond
-   ((string-null? s) s)
-   (else (show #f "**" s "**"))))
+;; Always bold. A formatter that works with SRFI 166: Monadic
+;; Formatting, which means it has to be used within the arguments to a
+;; call to show.
+(define (bold . args)
+  (each "**" (each-in-list args) "**"))
 
-(define (bolding s)
-  ;; Only bold if the command line option for bolding has been set.
-  ;; This generally happens in headers in reST table output.
+;; Only bold if the command line option for bolding has been set. This
+;; generally happens in headers in reST table output. A formatter that
+;; works with SRFI 166: Monadic Formatting, which means it has to be
+;; used within the arguments to a call to show.
+(define (bolding . args)
   (if *bolding*
-      (bold s)
-      s))
+      (bold (each-in-list args))
+      (each-in-list args)))
+
+(define (text . args)
+  (show #f (each-in-list args)))
 
 (define (italics s)
   (cond
@@ -355,20 +360,22 @@
 
     (when-in-alist (stats "stats" entity)
       (sep3)
-      (row3 (bolding "VALUE") (bolding "POINTS") (bolding "STAT"))
+      (row3 (text (bolding "VALUE"))
+            (text (bolding "POINTS"))
+            (text (bolding "STAT")))
       (headsep3)
       (set! stats-total
         (loop for stat in stats sum (process-stat stat) do (sep3)))
       (when *show-subtotals*
-        (row3 "" (bolding (number->string stats-total))
-              (bolding "STATS TOTAL"))
+        (row3 "" (text (bolding (number->string stats-total)))
+              (text (bolding "STATS TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (derived "derived" entity)
       (sep2)
-      (row2 (bolding "VALUE") (bolding "DERIVED VALUE"))
+      (row2 (text (bolding "VALUE")) (text (bolding "DERIVED VALUE")))
       (headsep2)
       (loop for d in derived do (process-derived d) do (sep2))
       (cond (*one-table* (empty))
@@ -376,44 +383,48 @@
 
     (when-in-alist (attributes "attributes" entity)
       (sep3)
-      (row3 (bolding "LEVEL") (bolding "POINTS") (bolding "ATTRIBUTE"))
+      (row3 (text (bolding "LEVEL"))
+            (text (bolding "POINTS"))
+            (text (bolding "ATTRIBUTE")))
       (headsep3)
       (set! attributes-total
         (loop for attribute in (sort attributes name-ci<?)
               sum (process-attribute attribute)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (bolding (number->string attributes-total))
-              (bolding "ATTRIBUTES TOTAL"))
+        (row3 "" (text (bolding (number->string attributes-total)))
+              (text (bolding "ATTRIBUTES TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row2 (bolding "POINTS") (bolding "DEFECT"))
+      (row2 (text (bolding "POINTS")) (text (bolding "DEFECT")))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect defect)
               do (sep2)))
       (when *show-subtotals*
-        (row2 (bolding (number->string defects-total))
-              (bolding "DEFECTS TOTAL"))
+        (row2 (text (bolding (number->string defects-total)))
+              (text (bolding "DEFECTS TOTAL")))
         (sep2))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (skills "skills" entity)
       (sep3)
-      (row3 (bolding "LEVEL") (bolding "POINTS") (bolding "SKILL"))
+      (row3 (text (bolding "LEVEL"))
+            (text (bolding "POINTS"))
+            (text (bolding "SKILL")))
       (headsep3)
       (set! skills-total
         (loop for skill in (sort skills name-ci<?)
               sum (process-skill skill)
               do (sep3)))
-      (row3 "" (bolding (number->string skills-total))
-            (bolding "SKILL POINTS TOTAL"))
+      (row3 "" (text (bolding (number->string skills-total)))
+            (text (bolding "SKILL POINTS TOTAL")))
       (sep3)
       (cond (*one-table* (empty))
             (else (show #t nl))))
@@ -421,7 +432,8 @@
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (row3 "" (bolding (number->string entity-total)) (bolding "TOTAL"))
+    (row3 "" (text (bolding (number->string entity-total)))
+          (text (bolding "TOTAL")))
     (sep3)
     (show #t nl)
     ))
