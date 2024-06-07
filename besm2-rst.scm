@@ -566,7 +566,9 @@
       (show #t nl nl))
 
     (when attributes
-      (show  #t (bold "Attributes"))
+      (if (mecha?)
+          (show #t (bold "Mecha Sub-Attributes"))
+          (show  #t (bold "Attributes")))
       (when *show-subtotals*
         (show #t " (" (label-points attributes-total) " )"))
       (show #t " — " nl)
@@ -577,7 +579,9 @@
       (show #t nl nl))
 
     (when defects
-      (show #t (bold "Defects"))
+      (if (mecha?)
+          (show #t (bold "Mecha Defects"))
+          (show #t (bold "Defects")))
       (when *show-subtotals*
         (show #t " (" (label-points defects-total) ")"))
       (show #t " — " nl)
