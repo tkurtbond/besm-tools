@@ -113,23 +113,31 @@
 (define (bold . args)
   (each "**" (each-in-list args) "**"))
 
+(define (italics . args)
+  (each "*" (each-in-list args) "*"))
+
 ;; Only bold if the command line option for bolding has been set. This
 ;; generally happens in headers in reST table output and in attribute
-;; and defect names and levels in terse mode. A formatter that works
-;; with SRFI 166: Monadic Formatting, which means it has to be used
-;; within the arguments to a call to show.
+;; and defect names and levels in terse mode. This is a formatter that
+;; works with SRFI 166: Monadic Formatting, which means it has to be
+;; used within the arguments to a call to show.
 (define (bolding . args)
   (if *bolding*
       (bold (each-in-list args))
       (each-in-list args)))
 
+(define (italicizing . args)
+  (if *italicizing*
+      (italics (each-in-list args))
+      (each-in-list args)))
+
 (define (text . args)
   (show #f (each-in-list args)))
 
-(define (italics s)
-  (cond
-   ((string-null? s) s)
-   (else (show #f "*" s "*"))))
+;;(define (italics s)
+;;  (cond
+;;   ((string-null? s) s)
+;;   (else (show #f "*" s "*"))))
 
 (define (separator-line num-columns sep c)
   ;; The last column is the description, and absorbs any unused space.
@@ -476,7 +484,7 @@
          (elements     (may-exist  "elements" attribute))
          (details      (make-attribute-details details enhancements limiters
                                                elements)))
-    (show #t (bolding name " " level) " ("
+    (show #t (italicizing name " " level) " ("
           (if details (string-append details ". ") "")
           (label-points points) ")")))
 
@@ -487,7 +495,7 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
-    (show #t (bolding name) " (" (if details (string-append details ".  ") "")
+    (show #t (italicizing name) " (" (if details (string-append details ".  ") "")
           (label-points points) ")")))
 
 (define (process-skill-terse skill)
@@ -497,7 +505,7 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t (bolding name " " level) " (" (if specialisations
+    (show #t (italicizing name " " level) " (" (if specialisations
                                      (string-append
                                       (string-join specialisations ", ")
                                       ".  ")
@@ -848,6 +856,7 @@ as that looks better.")
   (exit 1))
 
 (define *bolding* #t)
+(define *italicizing* #t)
 (define *debugging* #f)
 (define *head-sep* #\=)
 (define *num-width* (max
@@ -878,6 +887,11 @@ as that looks better.")
         (args:make-option
          (D omit-description) #:none "Omit the entiy description."
          (set! *omit-entity-description* #t))
+        (args:make-option
+            (i italics) #:none (show #f
+                                  "Turn OFF italicizing of names and levels of
+                          attributes and defects in terse mode.")
+          (set! *italicizing* #f))
         (args:make-option
          (m raw-ms-tables) #:none "Use groff tbl output in a raw ms block."
          (set! *output-formatter* process-entity-raw-ms))
