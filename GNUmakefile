@@ -4,6 +4,7 @@ CSC=$(shell type -p csc || type -p chicken-csc || echo 'echo "csc does not exis
 endif
 
 BROPTS=
+BR2EOPTS=
 
 # besm-totals is retired.
 INSTALL_PROGRAMS=besm4-rst besm2-rst
@@ -79,13 +80,13 @@ build/%-4e-tbl.gen.rst : test-data/%-4e.yaml build/besm4-rst
 	build/besm4-rst -s -m $(BROPTS) $< >$@ # ms tables
 
 build/%-2e.gen.rst : test-data/%-2e.yaml build/besm2-rst
-	build/besm2-rst $(BROPTS) $< >$@
+	build/besm2-rst $(BR2EOPTS) $< >$@
 
 build/%-2e-terse.gen.rst : test-data/%-2e.yaml build/besm2-rst
-	build/besm2-rst -s -t $(BROPTS) $< >$@ # terse
+	build/besm2-rst -s -t $(BR2EOPTS) $< >$@ # terse
 
 build/%-2e-tbl.gen.rst : test-data/%-2e.yaml build/besm2-rst
-	build/besm2-rst -s -m $(BROPTS) $< >$@ # ms tables
+	build/besm2-rst -s -m $(BR2EOPTS) $< >$@ # ms tables
 
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
