@@ -27,7 +27,7 @@
 ;;;   individual attributes, defects, or skills. The person entering
 ;;;   the YAML version of the template or character has to add up and
 ;;;   enter the points for those themselves. This way we don't have to
-;;;   do any calculations on the individual items. Enhancement and
+;;;   do any calculations on the individual items.  Enhancement and
 ;;;   limiters that count as more than one get entered (if the person
 ;;;   is interested) so the program can display the "Enhancement -X"
 ;;;   or "Limiter +X" if desired. Still no calculation of points.
@@ -100,23 +100,37 @@
 (define (space-to-newline s)
   (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
 
-(define (bold s)
-  ;; Always bold
-  (cond
-   ((string-null? s) s)
-   (else (show #f "**" s "**"))))
+;; Always bold. A formatter that works with SRFI 166: Monadic
+;; Formatting, which means it has to be used within the arguments to a
+;; call to show.
+(define (bold . args)
+  (each "**" (each-in-list args) "**"))
 
-(define (bolding s)
-  ;; Only bold if the command line option for bolding has been set.
-  ;; This generally happens in headers in reST table output.
+(define (italics . args)
+  (each "*" (each-in-list args) "*"))
+
+;; Only bold if the command line option for bolding has been set. This
+;; generally happens in headers in reST table output and in attribute
+;; and defect names and levels in terse mode. This is a formatter that
+;; works with SRFI 166: Monadic Formatting, which means it has to be
+;; used within the arguments to a call to show.
+(define (bolding . args)
   (if *bolding*
-      (bold s)
-      s))
+      (bold (each-in-list args))
+      (each-in-list args)))
 
-(define (italics s)
-  (cond
-   ((string-null? s) s)
-   (else (show #f "*" s "*"))))
+(define (italicizing . args)
+  (if *italicizing*
+      (italics (each-in-list args))
+      (each-in-list args)))
+
+(define (text . args)
+  (show #f (each-in-list args)))
+
+;;(define (italics s)
+;;  (cond
+;;   ((string-null? s) s)
+;;   (else (show #f "*" s "*"))))
 
 (define (separator-line num-columns sep c)
   ;; The last column is the description, and absorbs any unused space.
@@ -349,20 +363,22 @@
 
     (when-in-alist (stats "stats" entity)
       (sep3)
-      (row3 (bolding "VALUE") (bolding "POINTS") (bolding "STAT"))
+      (row3 (text (bolding "VALUE"))
+            (text (bolding "POINTS"))
+            (text (bolding "STAT")))
       (headsep3)
       (set! stats-total
         (loop for stat in stats sum (process-stat stat) do (sep3)))
       (when *show-subtotals*
-        (row3 "" (bolding (number->string stats-total))
-              (bolding "STATS TOTAL"))
+        (row3 "" (text (bolding (number->string stats-total)))
+              (text (bolding "STATS TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (derived "derived" entity)
       (sep2)
-      (row2 (bolding "VALUE") (bolding "DERIVED VALUE"))
+      (row2 (text (bolding "VALUE")) (text (bolding "DERIVED VALUE")))
       (headsep2)
       (loop for d in derived do (process-derived d) do (sep2))
       (cond (*one-table* (empty))
@@ -370,44 +386,48 @@
 
     (when-in-alist (attributes "attributes" entity)
       (sep3)
-      (row3 (bolding "LEVEL") (bolding "POINTS") (bolding "ATTRIBUTE"))
+      (row3 (text (bolding "LEVEL"))
+            (text (bolding "POINTS"))
+            (text (bolding "ATTRIBUTE")))
       (headsep3)
       (set! attributes-total
         (loop for attribute in (sort attributes name-ci<?)
               sum (process-attribute attribute)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (bolding (number->string attributes-total))
-              (bolding "ATTRIBUTES TOTAL"))
+        (row3 "" (text (bolding (number->string attributes-total)))
+              (text (bolding "ATTRIBUTES TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row3 (bolding "RANK") (bolding "POINTS") (bolding "DEFECT"))
+      (row2 (text (bolding "POINTS")) (text (bolding "DEFECT")))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect defect)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (bolding (number->string defects-total))
-              (bolding "DEFECTS TOTAL"))
-        (sep3))
+        (row2 (text (bolding (number->string defects-total)))
+              (text (bolding "DEFECTS TOTAL")))
+        (sep2))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (skills "skills" entity)
       (sep3)
-      (row3 (bolding "LEVEL") (bolding "POINTS") (bolding "SKILL"))
+      (row3 (text (bolding "LEVEL"))
+            (text (bolding "POINTS"))
+            (text (bolding "SKILL")))
       (headsep3)
       (set! skills-total
         (loop for skill in (sort skills name-ci<?)
               sum (process-skill skill)
               do (sep3)))
-      (row3 "" (bolding (number->string skills-total))
-            (bolding "SKILL POINTS TOTAL"))
+      (row3 "" (text (bolding (number->string skills-total)))
+            (text (bolding "SKILL POINTS TOTAL")))
       (sep3)
       (cond (*one-table* (empty))
             (else (show #t nl))))
@@ -415,7 +435,8 @@
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (row3 "" (bolding (number->string entity-total)) (bolding "TOTAL"))
+    (row3 "" (text (bolding (number->string entity-total)))
+          (text (bolding "TOTAL")))
     (sep3)
     (show #t nl)
     ))
@@ -457,7 +478,8 @@
          (elements     (may-exist  "elements" attribute))
          (details      (make-attribute-details details enhancements limiters
                                                elements)))
-    (show #t name " " level " (" (if details (string-append details ". ") "")
+    (show #t (italicizing name " " level) " ("
+          (if details (string-append details ". ") "")
          (displayed points) " CP)")))
 
 (define (process-defect-terse defect)
@@ -468,7 +490,8 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
-    (show #t name " (" (if details (string-append details ".  ") "")
+    (show #t (italicizing name) " ("
+          (if details (string-append details ".  ") "")
          (displayed points) " CP)")))
 
 (define (process-skill-terse skill)
@@ -478,11 +501,10 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t name " " level " (" (if specialisations
-                                     (string-append
-                                      (string-join specialisations ", ")
-                                      ".  ")
-                                     "")
+    (show #t (italicizing name " " level) " ("
+          (if specialisations
+              (string-append (string-join specialisations ", ") ".  ")
+              "")
          (displayed points) " SP)")))
 
 (define (process-entity-terse entity entity-no)
@@ -764,7 +786,9 @@
       (unless first-section-seen
         (set! first-section-seen #t)
         (show #t *raw-prefix* "=" nl))
-      (show #t *raw-prefix* (tbold "RANK") "#" (tbold "POINTS") "#" (tbold "DEFECT") nl)
+      (show #t *raw-prefix* (tbold "RANK") "#"
+            (tbold "POINTS") "#"
+            (tbold "DEFECT") nl)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect-raw-ms defect)))
@@ -800,7 +824,7 @@
 
 
 (define (process-file)
-  ;;; It is a file of possibly multiple entities.
+  ;; It is a file of possibly multiple entities.
   (let ((entities (yaml-load (current-input-port))))
     (loop for entity in entities
           for entity-no from 1
@@ -827,6 +851,7 @@ as that looks better.")
   (exit 1))
 
 (define *bolding* #t)
+(define *italicizing* #t)
 (define *debugging* #f)
 (define *head-sep* #\=)
 (define *num-width* (max
@@ -845,7 +870,10 @@ as that looks better.")
 
 (define +command-line-options+
   (list (args:make-option
-         (b bold) #:none "Turn OFF bolding of headers."
+            (b bold) #:none (show #f
+                                  "Turn OFF bolding of headers in plain
+                          reST headers and names and levels of
+                          attributes and defects in terse mode.")
          (set! *bolding* #f))
         ;; c is reserved for raw ConTeXt output.
         (args:make-option
@@ -854,6 +882,11 @@ as that looks better.")
         (args:make-option
          (D omit-description) #:none "Omit the entiy description."
          (set! *omit-entity-description* #t))
+        (args:make-option
+            (i italics) #:none (show #f
+                                  "Turn OFF italicizing of names and levels of
+                          attributes and defects in terse mode.")
+          (set! *italicizing* #f))
         (args:make-option
          (m raw-ms-tables) #:none "Use groff tbl output in a raw ms block."
          (set! *output-formatter* process-entity-raw-ms))

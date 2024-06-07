@@ -4,5 +4,5 @@
   first column empty for the totals?
 * DONE Implement terse mode.
 * TODO Implement list tables mode?
-* TODO Incorporate relevant changes from besm2-rst into besm4-rst.
+* DONE Incorporate relevant changes from besm2-rst into besm4-rst.
 Changes to terse mode, for instance.

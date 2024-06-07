@@ -495,7 +495,8 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
-    (show #t (italicizing name) " (" (if details (string-append details ".  ") "")
+    (show #t (italicizing name) " ("
+          (if details (string-append details ".  ") "")
           (label-points points) ")")))
 
 (define (process-skill-terse skill)
@@ -505,11 +506,10 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t (italicizing name " " level) " (" (if specialisations
-                                     (string-append
-                                      (string-join specialisations ", ")
-                                      ".  ")
-                                     "")
+    (show #t (italicizing name " " level) " ("
+          (if specialisations
+              (string-append (string-join specialisations ", ") ".  ")
+              "")
          (displayed points) " SP)")))
 
 (define (process-entity-terse entity entity-no)
@@ -793,7 +793,9 @@
       (unless first-section-seen
         (set! first-section-seen #t)
         (show #t *raw-prefix* "=" nl))
-      (show #t *raw-prefix* "#" (tbold "POINTS") "#" (tbold "DEFECT") nl)
+      (show #t *raw-prefix* "#"
+            (tbold "POINTS") "#"
+            (tbold "DEFECT") nl)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect-raw-ms defect)))
@@ -827,8 +829,9 @@
     (show #t *raw-prefix* ".TE" nl)
     ))
 
+
 (define (process-file)
-;;; It is a file of possibly multiple entities.
+  ;; It is a file of possibly multiple entities.
   (let ((entities (yaml-load (current-input-port))))
     (loop for entity in entities
           for entity-no from 1
