@@ -48,7 +48,7 @@
     - name: "Weapon: Plasma Fist"
       level: 2
       points: 1
-      details: Melee, Limited Shots [6 shots]
+      details: Damage 60, Melee, Limited Shots [6 shots]
     - name: "Weapon: Rocket Pod"
       level: 2
       points: 1
