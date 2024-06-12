@@ -1,4 +1,4 @@
-;;;!> besm-rst.scm -- Convert a YAML BESM 4E character or template into reST.
+;;;!> besm2-rst.scm -- Convert a YAML BESM 2E character or template into reST.
 
 ;;; Design Decisions:
 ;;;

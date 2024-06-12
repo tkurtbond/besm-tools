@@ -1,4 +1,4 @@
-;;;!> besm-rst.scm -- Convert a YAML BESM 4E character or template into reST.
+;;;!> besm4-rst.scm -- Convert a YAML BESM 4E character or template into reST.
 
 ;;; Design Decisions:
 ;;;
@@ -718,7 +718,7 @@
 
     (when-in-alist (tagline "tagline" entity)
       (set! paragraph-seen #t)
-      (show #t (titalics (string-trim-both tagline)) nl nl))
+      (show #t (italics (string-trim-both tagline)) nl nl))
 
     (unless *omit-entity-description*
       (when-in-alist (description "description" entity)
