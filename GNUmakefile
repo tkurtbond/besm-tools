@@ -120,3 +120,5 @@ $(BINDIR)/% : build/%
 	cp $< $@
 
 .PRECIOUS: %.gen.rst
+
+print-%  : ; @echo $* = $($*)
