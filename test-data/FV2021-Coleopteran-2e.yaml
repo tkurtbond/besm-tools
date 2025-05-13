@@ -54,7 +54,7 @@
       points: 1
       details: |
         Damage 45, Auto-fire, Area Effect, Limited Shots ×2 [3 shots],
-        Stoppable.
+        Stoppable
   defects:
     - name: Awkward Size
       points: -2
