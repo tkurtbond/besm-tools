@@ -6,3 +6,7 @@
 * TODO Implement list tables mode?
 * DONE Incorporate relevant changes from besm2-rst into besm4-rst.
 Changes to terse mode, for instance.
+* TODO Decide if 2e mecha should have all attributes/defects labeled mecha attributes/defects.
+Check various BESM 2E books for mecha stats formats.
+CK: Mecha Sub-attributes.  BSF: no examples given.
+** Then make table modes use mecha attributes/defects labels.
