@@ -12,45 +12,79 @@ OTHER_PROGRAMS=
 PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
 
 TEST_DATA=$(wildcard test-data/*.yaml)
+
+# This is the list of generated reST files using reST tables.
 TEST_OUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .gen.rst,$(basename $(f) .yaml)))
+
+# This is the list of generated reST files using terse output.
 TEST_TERSEOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.gen.rst,$(basename $(f) .yaml)))
+
+# This is the list  of generated reST files using TBL tables in a raw block.
 TEST_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.gen.rst,$(basename $(f) .yaml)))
-TEST_STMTOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.stmt.ms.pdf,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.stmt.ms.pdf,$(basename $(f) .yaml)))
-TEST_LETTEROUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .ms.pdf,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.ms.pdf,$(basename $(f) .yaml)))
+
+# This is the  list of statement-sized PDFs produced from reST tables, TBL tables, and terse mode.
+TEST_STMTOUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.stmt.ms.pdf,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.stmt.ms.pdf,$(basename $(f) .yaml)))
+
+# This is the  list of letter-sized PDFs produced from reST tables, TBL tables, and terse mode.
+TEST_LETTEROUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .ms.pdf,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.ms.pdf,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.ms.pdf,$(basename $(f) .yaml)))
+
+# This is the the terse letter output separate.
 TEST_TERSELETTEROUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.ms.pdf,$(basename $(f) .yaml)))
-TEST_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .ms,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.ms,$(basename $(f) .yaml)))
-TEST_NATIVEOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .native,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.native,$(basename $(f) .yaml)))
-TEST_HTMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .html,$(basename $(f) .yaml))) $(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.html,$(basename $(f) .yaml)))
+
+# This is the .ms files for output using reST tables and TBL in raw blocks.
+TEST_TBLOUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .ms,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.ms,$(basename $(f) .yaml)))
+
+# This is the native output of pandoc, for debugging, for reST tables TBL in raw blocks, and terse output.
+TEST_NATIVEOUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .native,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.native,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.native,$(basename $(f) .yaml)))
+
+# This is HTML output.
+TEST_HTMLOUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .html,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.html,$(basename $(f) .yaml)))
+
+# This is the output of running yamllint on each of the YAML files.
 TEST_YAMLERROUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .yamlerr,$(basename $(f) .yaml)))
 
 all: $(PROGRAMS)
 
-$(wildcard build/*.gen.rst): build/besm4-rst
+$(wildcard build/*-4e*.gen.rst): build/besm4-rst
+$(wildcard build/*-2e*.gen.rst): build/besm2-rst
 
 # Note: enyon-boase.yaml has attributes, defects, and skills out of order,
 # for testing sorting.
 
-test:	build/besm4-rst build/besm2-rst \
+rst: build/besm4-rst build/besm2-rst \
 	$(TEST_OUTPUT) $(TEST_TERSEOUTPUT) $(TEST_TBLOUTPUT)
 
-echo:
-	echo $(TEST_OUTPUT) $(TEST_TERSEOUTPUT) $(TEST_TBLOUTPUT)
-
+# What is this doing?
 RPBHENTITIES=FV2021-Coleopteran-4e enyon-boase-4e pawl-cardynham-4e nessa-kitto-4e
 RPBHGENRST=$(foreach e,$(RPBHENTITIES),build/$(addsuffix .gen.rst,$(e)))
 $(RPBHGENRST): BROPTS+=-s
 
-stmt:	test $(TEST_TBLSTMTOUTPUT) $(TEST_STMTOUTPUT)
+test: stmt letter native
 
-letter: test $(TEST_LETTEROUTPUT)
+stmt: rst $(TEST_STMTOUTPUT)
 
-terseletter: test $(TEST_TERSELETTEROUTPUT)
+letter: rst $(TEST_LETTEROUTPUT)
 
-native: test $(TEST_NATIVEOUTPUT)
+# terseletter: rst $(TEST_TERSELETTEROUTPUT)
 
-tbl: test $(TEST_TBLOUTPUT)
+native: rst $(TEST_NATIVEOUTPUT)
 
-html: test $(TEST_HTMLOUTPUT)
+tbl: rst $(TEST_TBLOUTPUT)
+
+html: rst $(TEST_HTMLOUTPUT)
 
 yamlerr: $(TEST_YAMLERROUTPUT)
 
@@ -120,6 +154,8 @@ $(BINDIR)/% : build/%
 	[ -d $(BINDIR) ] || (mkdir -p $(BINDIR) && echo built $(BINDIR))
 	cp $< $@
 
-.PRECIOUS: %.gen.rst
+.PRECIOUS: \
+	build/%-4e.gen.rst build/%-4e-terse.gen.rst build/%-4e-tbl.gen.rst \
+	build/%-2e.gen.rst build/%-2e-terse.gen.rst build/%-2e-tbl.gen.rst
 
 print-%  : ; @echo $* = $($*)
