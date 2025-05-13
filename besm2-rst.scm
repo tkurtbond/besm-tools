@@ -315,7 +315,7 @@
          (description (if details (show #f name " (" details ")") name))
          )
     (dbg (dfmt "process-defect: before row3" nl))
-    (row2 points description)
+    (row3 "" points description)
     (dbg (dfmt "process-defect: after row3" nl))
     points))
 
@@ -409,16 +409,16 @@
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row2 (text (bolding "POINTS")) (text (bolding "DEFECT")))
+      (row3 "" (text (bolding "POINTS")) (text (bolding "DEFECT")))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect defect)
-              do (sep2)))
+              do (sep3)))
       (when *show-subtotals*
-        (row2 (text (bolding (number->string defects-total)))
+        (row3 "" (text (bolding (number->string defects-total)))
               (text (bolding "DEFECTS TOTAL")))
-        (sep2))
+        (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
