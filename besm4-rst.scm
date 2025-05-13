@@ -309,7 +309,9 @@
          (description (if details (show #f name " (" details ")") name))
          )
     (dbg (dfmt "process-defect: before row3" nl))
-    (row3 rank points description)
+    ;; Defect points are negative, but in rst that starts an itemized list,
+    ;; so we put a backslash before them to quote them.
+    (row3 rank (string-append "\\" (number->string points)) description) 
     (dbg (dfmt "process-defect: after row3" nl))
     points))
 
