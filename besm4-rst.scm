@@ -410,9 +410,9 @@
               sum (process-defect defect)
               do (sep3)))
       (when *show-subtotals*
-        (row2 (text (bolding (number->string defects-total)))
+        (row3 "" (text (bolding (number->string defects-total)))
               (text (bolding "DEFECTS TOTAL")))
-        (sep2))
+        (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
