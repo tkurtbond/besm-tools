@@ -71,7 +71,7 @@ install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
 #	build/besm4-rst $(BROPTS) $< >$@
 
 build/%-4e.gen.rst : test-data/%-4e.yaml build/besm4-rst
-	build/besm4-rst $(BROPTS) $< >$@
+	build/besm4-rst -s $(BROPTS) $< >$@
 
 build/%-4e-terse.gen.rst : test-data/%-4e.yaml build/besm4-rst
 	build/besm4-rst -s -t $(BROPTS) $< >$@ # terse
@@ -80,7 +80,7 @@ build/%-4e-tbl.gen.rst : test-data/%-4e.yaml build/besm4-rst
 	build/besm4-rst -s -m $(BROPTS) $< >$@ # ms tables
 
 build/%-2e.gen.rst : test-data/%-2e.yaml build/besm2-rst
-	build/besm2-rst $(BR2EOPTS) $< >$@
+	build/besm2-rst -s $(BR2EOPTS) $< >$@
 
 build/%-2e-terse.gen.rst : test-data/%-2e.yaml build/besm2-rst
 	build/besm2-rst -s -t $(BR2EOPTS) $< >$@ # terse
