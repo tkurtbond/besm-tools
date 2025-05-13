@@ -11,7 +11,7 @@ besm4-rst and besm2-rst
 Currently, this contains two programs, :app:`besm4-rst` and
 :app:`besm2-rst`, which transforms BESM characters, templates, or
 items in the form of a YAML_ file into three forms of
-reStructuredText_ output: (1) using :app`reST` grid tables, (2) using
+reStructuredText_ output: (1) using :app:`reST` grid tables, (2) using
 `tbl <https://man7.org/linux/man-pages/man1/tbl.1.html>`_, (both in a
 format similar to that used in *BESM 4E*), and (3) in the terse format
 used in *BESM 1E* and *BESM 2E* products.  The :app:`reST` grid tables
