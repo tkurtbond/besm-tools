@@ -405,7 +405,7 @@
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row2 (text (bolding "POINTS")) (text (bolding "DEFECT")))
+      (row3 (text (bolding "RANK")) (text (bolding "POINTS")) (text (bolding "DEFECT")))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
