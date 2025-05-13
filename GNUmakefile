@@ -51,7 +51,7 @@ TEST_NATIVEOUTPUT=\
 # This is HTML output.
 TEST_HTMLOUTPUT=\
 	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .html,$(basename $(f) .yaml))) \
-	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.html,$(basename $(f) .yaml)))
+	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.html,$(basename $(f) .yaml)))
 
 # This is the output of running yamllint on each of the YAML files.
 TEST_YAMLERROUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .yamlerr,$(basename $(f) .yaml)))
@@ -146,6 +146,10 @@ build/%.native : build/%.gen.rst
 
 build/%.html : build/%.gen.rst
 	pandoc -s -r rst -w html -o $@ $<
+
+build/%-terse.html : build/%-terse.gen.rst
+	pandoc -s -r rst -w html -o $@ $<
+
 
 build/% : %.scm
 	$(CSC) $(CSCFLAGS) -o $@ $^
