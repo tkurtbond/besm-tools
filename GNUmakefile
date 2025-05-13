@@ -91,11 +91,12 @@ build/%-2e-tbl.gen.rst : test-data/%-2e.yaml build/besm2-rst
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
 
+#MS_COLUMNS=-V twocolumns
 build/%.ms.pdf : build/%.gen.rst
-	pandoc -r rst -w ms --template=tkb -V twocolumns -o $@ $<
+	pandoc -r rst -w ms --template=tkb $(MS_COLUMNS) -o $@ $<
 
 build/%.ms : build/%.gen.rst
-	pandoc -r rst -w ms --template=tkb -V twocolumns -o $@ $<
+	pandoc -r rst -w ms --template=tkb $(MS_COLUMNS) -o $@ $<
 
 build/%.stmt.ms.pdf : build/%.gen.rst
 	pandoc -r rst -w ms --template=statement \
