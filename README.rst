@@ -1,6 +1,8 @@
 BESM Tools
 @@@@@@@@@@
 
+.. role:: app(strong)
+
 Tools for the *Big Eyes, Small Mouth* RPG (BESM).
 
 besm4-rst and besm2-rst
