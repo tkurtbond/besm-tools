@@ -1,8 +1,6 @@
 BESM Tools
 @@@@@@@@@@
 
-.. role:: app(strong)
-
 Tools for the *Big Eyes, Small Mouth* RPG (BESM).
 
 besm4-rst and besm2-rst
@@ -15,7 +13,7 @@ reStructuredText_ output: (1) using :app`reST` grid tables, (2) using
 `tbl <https://man7.org/linux/man-pages/man1/tbl.1.html>`_, (both in a
 format similar to that used in *BESM 4E*), and (3) in the terse format
 used in *BESM 1E* and *BESM 2E* products.  The :app:`reST` grid tables
-allow me to also output HTML.  I use `pandoc <https://pandoc.org/_`_ to
+allow me to also output HTML.  I use `pandoc <https://pandoc.org/>`_ to
 convert these various :app:`reST` output formats into PDF and HTML.
 
 Originally I just output :app:`reST` grid tables, but those are actually
