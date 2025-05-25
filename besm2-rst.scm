@@ -116,11 +116,16 @@
 (define (italics . args)
   (each "*" (each-in-list args) "*"))
 
+;; Only bold if the -B/--bold-head command line option has been set.
+;; This is for bolding in headers in reST table output.
+(define (hbolding . args)
+  (each "**" (each-in-list args) "**"))
+
 ;; Only bold if the command line option for bolding has been set. This
 ;; generally happens in headers in reST table output and in attribute
 ;; and defect names and levels in terse mode. This is a formatter that
 ;; works with SRFI 166: Monadic Formatting, which means it has to be
-;; used within the arguments to a call to show.
+;; used within the arguments to a call to the show procedure.
 (define (bolding . args)
   (if *bolding*
       (bold (each-in-list args))
@@ -131,6 +136,12 @@
       (italics (each-in-list args))
       (each-in-list args)))
 
+(define (emphasizing . args)
+  (cond
+   (*bolding*     (bold (each-in-list args)))
+   (*italicizing* (italics (each-in-list args)))
+   (else          (each-in-list args))))
+      
 (define (text . args)
   (show #f (each-in-list args)))
 
@@ -371,22 +382,22 @@
 
     (when-in-alist (stats "stats" entity)
       (sep3)
-      (row3 (text (bolding "VALUE"))
-            (text (bolding "POINTS"))
-            (text (bolding "STAT")))
+      (row3 (text (hbolding "VALUE"))
+            (text (hbolding "POINTS"))
+            (text (hbolding "STAT")))
       (headsep3)
       (set! stats-total
         (loop for stat in stats sum (process-stat stat) do (sep3)))
       (when *show-subtotals*
-        (row3 "" (text (bolding (number->string stats-total)))
-              (text (bolding "STATS TOTAL")))
+        (row3 "" (text (hbolding (number->string stats-total)))
+              (text (hbolding "STATS TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (derived "derived" entity)
       (sep2)
-      (row2 (text (bolding "VALUE")) (text (bolding "DERIVED VALUE")))
+      (row2 (text (hbolding "VALUE")) (text (hbolding "DERIVED VALUE")))
       (headsep2)
       (loop for d in derived do (process-derived d) do (sep2))
       (cond (*one-table* (empty))
@@ -394,48 +405,48 @@
 
     (when-in-alist (attributes "attributes" entity)
       (sep3)
-      (row3 (text (bolding "LEVEL"))
-            (text (bolding "POINTS"))
-            (text (bolding "ATTRIBUTE")))
+      (row3 (text (hbolding "LEVEL"))
+            (text (hbolding "POINTS"))
+            (text (hbolding "ATTRIBUTE")))
       (headsep3)
       (set! attributes-total
         (loop for attribute in (sort attributes name-ci<?)
               sum (process-attribute attribute)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (text (bolding (number->string attributes-total)))
-              (text (bolding "ATTRIBUTES TOTAL")))
+        (row3 "" (text (hbolding (number->string attributes-total)))
+              (text (hbolding "ATTRIBUTES TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (defects "defects" entity)
       (sep3)
-      (row3 "" (text (bolding "POINTS")) (text (bolding "DEFECT")))
+      (row3 "" (text (hbolding "POINTS")) (text (hbolding "DEFECT")))
       (headsep3)
       (set! defects-total 
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect defect)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (text (bolding (number->string defects-total)))
-              (text (bolding "DEFECTS TOTAL")))
+        (row3 "" (text (hbolding (number->string defects-total)))
+              (text (hbolding "DEFECTS TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
     (when-in-alist (skills "skills" entity)
       (sep3)
-      (row3 (text (bolding "LEVEL"))
-            (text (bolding "POINTS"))
-            (text (bolding "SKILL")))
+      (row3 (text (hbolding "LEVEL"))
+            (text (hbolding "POINTS"))
+            (text (hbolding "SKILL")))
       (headsep3)
       (set! skills-total
         (loop for skill in (sort skills name-ci<?)
               sum (process-skill skill)
               do (sep3)))
-      (row3 "" (text (bolding (number->string skills-total)))
-            (text (bolding "SKILL POINTS TOTAL")))
+      (row3 "" (text (hbolding (number->string skills-total)))
+            (text (hbolding "SKILL POINTS TOTAL")))
       (sep3)
       (cond (*one-table* (empty))
             (else (show #t nl))))
@@ -443,8 +454,8 @@
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (row3 "" (text (bolding (number->string entity-total)))
-          (text (bolding "TOTAL")))
+    (row3 "" (text (hbolding (number->string entity-total)))
+          (text (hbolding "TOTAL")))
     (sep3)
     (show #t nl)
     ))
@@ -486,7 +497,7 @@
          (elements     (may-exist  "elements" attribute))
          (details      (make-attribute-details details enhancements limiters
                                                elements)))
-    (show #t (italicizing name " " level) " ("
+    (show #t (emphasizing name (if *em-dash* " — " " ") level) " ("
           (if details (string-append details ". ") "")
           (label-points points) ")")))
 
@@ -497,7 +508,7 @@
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
-    (show #t (italicizing name) " ("
+    (show #t (emphasizing name) " ("
           (if details (string-append details ".  ") "")
           (label-points points) ")")))
 
@@ -508,7 +519,7 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t (italicizing name " " level) " ("
+    (show #t (emphasizing name (if *em-dash* " — " " ") level) " ("
           (if specialisations
               (string-append (string-join specialisations ", ") ".  ")
               "")
@@ -845,9 +856,10 @@
   (with-input-from-file filename process-file))
 
 
+(define usage-port (make-parameter (current-error-port)))
 
 (define (usage)
-  (with-output-to-port (current-error-port)
+  (with-output-to-port (usage-port)
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
@@ -860,9 +872,12 @@ as that looks better.")
       (show #t "Current argv: " (written (argv)) nl)))
   (exit 1))
 
-(define *bolding* #t)
-(define *italicizing* #t)
+(define *bold-head* #t)
+(define *bolding* #f)
+(define *italicizing* #f)
 (define *debugging* #f)
+;; Use an em-dash to separate the attribute name and level in terse mode.
+(define *em-dash* #f)
 (define *head-sep* #\=)
 (define *num-width* (max
                      (string-length "LEVEL")
@@ -880,11 +895,14 @@ as that looks better.")
 
 (define +command-line-options+
   (list (args:make-option
-            (b bold) #:none (show #f
-                                  "Turn OFF bolding of headers in plain
-                          reST headers and names and levels of
-                          attributes and defects in terse mode.")
-         (set! *bolding* #f))
+          (B bold-head) #:none (show #f "Turns off bolding of headers in plain reST output.")
+          (set! *bold-head* #t))
+        (args:make-option
+         (b bold) #:none (show #f
+                                  "Turn on bolding of names and levels of
+                          attributes, defects, and skills in terse mode.
+                          Overrides italicizing (-i/--italics).")
+         (set! *bolding* #t))
         ;; c is reserved for raw ConTeXt output.
         (args:make-option
          (d debug) #:none "Turn on debugging."
@@ -894,9 +912,13 @@ as that looks better.")
          (set! *omit-entity-description* #t))
         (args:make-option
             (i italics) #:none (show #f
-                                  "Turn OFF italicizing of names and levels of
+                                  "Turn on italicizing of names and levels of
                           attributes and defects in terse mode.")
-          (set! *italicizing* #f))
+          (set! *italicizing* #t))
+        (args:make-option
+         (M em-dash) #:none "Separate the attribute name and the level with
+                          an em dash in terse mode."
+         (set! *em-dash* #t))
         (args:make-option
          (m raw-ms-tables) #:none "Use groff tbl output in a raw ms block."
          (set! *output-formatter* process-entity-raw-ms))
@@ -905,7 +927,8 @@ as that looks better.")
          (set! *output-file* arg))
         (args:make-option
          (h help) #:none "Display this text."
-         (usage))
+         (parameterize ((usage-port (current-output-port)))
+           (usage)))
         (args:make-option
          (|1| one) #:none "Use only one table."
          (dbg (dfmt "one only" nl))
