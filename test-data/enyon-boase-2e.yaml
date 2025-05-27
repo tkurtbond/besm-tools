@@ -33,7 +33,7 @@
       level: 2
       points: 8
   defects:
-    - name: Conditional Ownership (Army ownership)
+    - name: "Conditional Ownership: Army ownership"
       points: -2
     - name: "Unique Defect: Obsessed by Military History"
       points: -1
