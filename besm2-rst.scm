@@ -499,7 +499,9 @@
          (elements     (may-exist  "elements" attribute))
          (details      (make-attribute-details details enhancements limiters
                                                elements)))
-    (show #t (emphasizing name (if *em-dash* " — " " ") level) " ("
+    (show #t (emphasizing name
+                          (if *em-dash* " — " " ")
+                          (if *level* "Level " "") level) " ("
           (if details (string-append details ". ") "")
           (label-points points) ")")))
 
@@ -521,7 +523,9 @@
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
-    (show #t (emphasizing name (if *em-dash* " — " " ") level) " ("
+    (show #t (emphasizing name
+                          (if *em-dash* " — " " ")
+                          (if *level* "Level " "")level) " ("
           (if specialisations
               (string-append (string-join specialisations ", ") ".  ")
               "")
@@ -880,6 +884,7 @@ as that looks better.")
 ;; Use an em-dash to separate the attribute name and level in terse mode.
 (define *em-dash* #f)
 (define *head-sep* #\=)
+(define *level* #f)
 (define *num-width* (max
                      (string-length "LEVEL")
                      (string-length "VALUE")
@@ -929,6 +934,10 @@ as that looks better.")
         (args:make-option
          (h help) #:none "Display this text."
          (usage))
+        (args:make-option
+         (l level) #:none "Output the word \"Level\" before the level number 
+                          in terse mode."
+         (set! *level* #t))
         (args:make-option
          (|1| one) #:none "Use only one table."
          (dbg (dfmt "one only" nl))
