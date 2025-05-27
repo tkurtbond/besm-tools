@@ -119,7 +119,9 @@
 ;; Only bold if the -B/--bold-head command line option has been set.
 ;; This is for bolding in headers in reST table output.
 (define (hbolding . args)
-  (each "**" (each-in-list args) "**"))
+  (if *bold-head*
+      (each "**" (each-in-list args) "**")
+      (each-in-list args)))
 
 ;; Only bold if the command line option for bolding has been set. This
 ;; generally happens in headers in reST table output and in attribute
@@ -591,7 +593,7 @@
           (show #t (bold "Mecha Sub-Attributes"))
           (show  #t (bold "Attributes")))
       (when *show-subtotals*
-        (show #t " (" (label-points attributes-total) " )"))
+        (show #t " (" (label-points attributes-total) ")"))
       (show #t " — " nl)
       (loop for attribute in (sort attributes name-ci<?)
             for i from 1
@@ -620,7 +622,8 @@
       (loop for skill in (sort skills name-ci<?)
             for i from 1
             when (> i 1) do (show #t ", ")
-            do (process-skill-terse skill)))
+            do (process-skill-terse skill))
+      (show #t nl nl))
     ))
 
 
@@ -856,10 +859,8 @@
   (with-input-from-file filename process-file))
 
 
-(define usage-port (make-parameter (current-error-port)))
-
 (define (usage)
-  (with-output-to-port (usage-port)
+  (with-output-to-port (current-error-port)
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
@@ -895,8 +896,8 @@ as that looks better.")
 
 (define +command-line-options+
   (list (args:make-option
-          (B bold-head) #:none (show #f "Turns off bolding of headers in plain reST output.")
-          (set! *bold-head* #t))
+          (B no-bold-head) #:none (show #f "Turns OFF bolding of headers in plain reST output.")
+          (set! *bold-head* #f))
         (args:make-option
          (b bold) #:none (show #f
                                   "Turn on bolding of names and levels of
@@ -927,8 +928,7 @@ as that looks better.")
          (set! *output-file* arg))
         (args:make-option
          (h help) #:none "Display this text."
-         (parameterize ((usage-port (current-output-port)))
-           (usage)))
+         (usage))
         (args:make-option
          (|1| one) #:none "Use only one table."
          (dbg (dfmt "one only" nl))

@@ -72,7 +72,7 @@ RPBHENTITIES=FV2021-Coleopteran-4e enyon-boase-4e pawl-cardynham-4e nessa-kitto-
 RPBHGENRST=$(foreach e,$(RPBHENTITIES),build/$(addsuffix .gen.rst,$(e)))
 $(RPBHGENRST): BROPTS+=-s
 
-test: stmt letter native
+test: stmt letter native html
 
 stmt: rst $(TEST_STMTOUTPUT)
 
