@@ -55,6 +55,7 @@
 (import (scheme))
 
 (import (chicken base))
+(import (chicken condition))
 (import (chicken io))
 (import (chicken port))
 (import (chicken process-context))
@@ -568,7 +569,9 @@
       (show #t (italics (string-trim-both tagline)) nl nl))
 
     (when (and description (not *omit-entity-description*))
-      (show #t description nl nl))
+      (show #t description nl nl)
+      (when *page-after-description*
+        (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
     
     (when size
       (show #t (bold "Size:") " " size nl nl))
@@ -852,16 +855,21 @@
 
 (define (process-file)
   ;; It is a file of possibly multiple entities.
-  (let ((entities (yaml-load (current-input-port))))
-    (loop for entity in entities
-          for entity-no from 1
-          do (parameterize ((mecha? (assoc "mecha" entity)))
-               (*output-formatter* entity entity-no)))))
+  (handle-exceptions exn
+      (begin
+        (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
+        (print-error-message exn (current-error-port)))
+    (let ((entities (yaml-load (current-input-port))))
+      (loop for entity in entities
+            for entity-no from 1
+            do (parameterize ((mecha? (assoc "mecha" entity)))
+                 (*output-formatter* entity entity-no))))))
 
+(define yaml-input-filename (make-parameter "(stdin)"))
 
 (define (process-filename filename)
-  (with-input-from-file filename process-file))
-
+  (parameterize ((yaml-input-filename filename))
+    (with-input-from-file filename process-file)))
 
 (define (usage)
   (with-output-to-port (current-error-port)
@@ -898,9 +906,18 @@ as that looks better.")
 (define *table-width* 60)
 (define *underliner* #\-)
 (define *subunderliner* #f)
+(define *page-after-description* #f)
 
 (define +command-line-options+
   (list (args:make-option
+         (|1| one) #:none "Use only one table."
+         (dbg (dfmt "one only" nl))
+         (set! *one-table* #t)
+         ;; Having multiple header separator lines doesn't cause pandoc to
+         ;; complain, but it does make the first line a header which looks
+         ;; different in HTML.
+         (set! *head-sep* #\-))
+        (args:make-option
           (B no-bold-head) #:none (show #f "Turns OFF bolding of headers in plain reST output.")
           (set! *bold-head* #f))
         (args:make-option
@@ -911,16 +928,23 @@ as that looks better.")
          (set! *bolding* #t))
         ;; c is reserved for raw ConTeXt output.
         (args:make-option
-         (d debug) #:none "Turn on debugging."
-         (set! *debugging* #t))
-        (args:make-option
          (D omit-description) #:none "Omit the entiy description."
          (set! *omit-entity-description* #t))
         (args:make-option
-            (i italics) #:none (show #f
+         (d debug) #:none "Turn on debugging."
+         (set! *debugging* #t))
+        (args:make-option
+         (h help) #:none "Display this text."
+         (usage))
+        (args:make-option
+         (i italics) #:none (show #f
                                   "Turn on italicizing of names and levels of
                           attributes and defects in terse mode.")
-          (set! *italicizing* #t))
+         (set! *italicizing* #t))
+        (args:make-option
+         (l level) #:none "Output the word \"Level\" before the level number 
+                          in terse mode."
+         (set! *level* #t))
         (args:make-option
          (M em-dash) #:none "Separate the attribute name and the level with
                           an em dash in terse mode."
@@ -932,20 +956,8 @@ as that looks better.")
          (o output) #:required "Output file."
          (set! *output-file* arg))
         (args:make-option
-         (h help) #:none "Display this text."
-         (usage))
-        (args:make-option
-         (l level) #:none "Output the word \"Level\" before the level number 
-                          in terse mode."
-         (set! *level* #t))
-        (args:make-option
-         (|1| one) #:none "Use only one table."
-         (dbg (dfmt "one only" nl))
-         (set! *one-table* #t)
-         ;; Having multiple header separator lines doesn't cause pandoc to
-         ;; complain, but it does make the first line a header which looks
-         ;; different in HTML.
-         (set! *head-sep* #\-))
+         (p page) #:none "Page after description.  (Only for ms output!)"
+         (set! *page-after-description* #t))
         (args:make-option
          (s subtotals) #:none
          "Show subtotals for stats, attributes, and defects."
@@ -954,15 +966,15 @@ as that looks better.")
          (t terse) #:none "Use terse output."
          (set! *output-formatter* process-entity-terse))
         (args:make-option
-         (u underliner) #:required
-         "Character to use for underlining the header."
-         (set! *underliner* (string-ref arg 0)))
-        (args:make-option
          (U subunderliner) #:required
          "Entities after the first are subentities,
                           and use a different character for
                           underlining the subheader."
          (set! *subunderliner* (string-ref arg 0)))
+        (args:make-option
+         (u underliner) #:required
+         "Character to use for underlining the header."
+         (set! *underliner* (string-ref arg 0)))
         (args:make-option
          (w width)
          (required: "NUMBER") "Width of table in characters"
