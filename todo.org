@@ -10,3 +10,12 @@ Changes to terse mode, for instance.
 Check various BESM 2E books for mecha stats formats.
 CK: Mecha Sub-attributes.  BSF: no examples given.
 ** Then make table modes use mecha attributes/defects labels.
+* TODO Add description to attributes (and defects?)
+Then break up "Own a Big Mecha: WT-34 Bogatry" into
+#+BEGIN_SRC yaml
+  name: Own a Big Mecha
+  description: WT-34 Bogatry
+#+END_SRC
+so that there can be different output styles "X: Y", "X (description,
+details..., CP)", etc.
+* TODO Add options to italicize or bold attribute names in ms-tbl output.
