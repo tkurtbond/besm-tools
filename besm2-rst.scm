@@ -633,6 +633,201 @@
       (show #t nl nl))
     ))
 
+(define-syntax depth+
+  (syntax-rules ()
+    ((_ e1 e2 ...) (parameterize ((*hmm-depth* (+ (*hmm-depth*) 1))) e1 e2 ...))))
+
+(define (make-tabs n)
+  (make-string n #\tab))
+
+(define (indent)
+  (make-tabs (*hmm-depth*)))
+
+(define (all-one-line s)
+  (string-join (string-split s "\n") " "))
+
+(define (process-stat-hmm stat)
+  (show #t (must-exist "name" stat) " " (must-exist "value" stat)
+        " (" (label-points (must-exist "points" stat))  ")"))
+
+(define (process-derived-hmm derived)
+  (dbg (dfmt "process-derived-hmm: " (pretty derived) nl))
+  ;; There are no points.
+  (let* ((name          (must-exist "name" derived))
+         (value         (must-exist "value" derived))
+         (alternatives  (may-exist "alternatives" derived))
+         (alternatives  (if alternatives
+                            (string-append " ("
+                                           (string-join alternatives ", ")
+                                           ")")
+                            #f)))
+    (show #t name " " (displayed value) (if alternatives alternatives ""))))
+
+(define (process-attribute-hmm attribute)
+  (dbg (dfmt "process-attribute-hmm: " (pretty attribute) nl))
+  ;; returns the cost of the attribute
+  (let* ((name         (must-exist "name" attribute))
+         (level        (may-exist "level" attribute))
+         (level        (if level level ""))
+         (points       (must-exist "points" attribute))
+         (details      (may-exist  "details" attribute))
+         (details      (if details (string-trim-both details) details))
+         (effective    (may-exist  "effective" attribute))
+         (level        (if effective (show #f level " (" effective ")") level))
+         (enhancements (may-exist  "enhancements" attribute))
+         (limiters     (may-exist  "limiters" attribute))
+         (elements     (may-exist  "elements" attribute))
+         (details      (make-attribute-details details enhancements limiters
+                                               elements)))
+    (show #t (emphasizing name
+                          (if *em-dash* " — " " ")
+                          (if *level* "Level " "") level) " ("
+                          (if details (all-one-line (string-append details ". ")) "")
+                          (label-points points) ")")))
+
+(define (process-defect-hmm defect)
+  (dbg (dfmt "process-defect-hmm: " (pretty defect) nl))
+  ;; Returns the cost of the defect
+  (let* ((name        (must-exist "name" defect))
+         (points      (must-exist "points" defect))
+         (details     (may-exist  "details" defect))
+         (details     (if details (string-trim-both details) details)))
+    (show #t (emphasizing name) " ("
+          (if details (all-one-line (string-append details ".  ")) "")
+          (label-points points) ")")))
+
+(define (process-skill-hmm skill)
+  (dbg (dfmt "process-skill-hmm: " (pretty skill) nl))
+  ;; Returns the cost of the skill.
+  (let* ((name            (must-exist "name" skill))
+         (level           (must-exist "level" skill))
+         (points          (must-exist "points" skill))
+         (specialisations (may-exist "specialisations" skill)))
+    (show #t (emphasizing name
+                          (if *em-dash* " — " " ")
+                          (if *level* "Level " "")level) " ("
+                          (if specialisations
+                              (string-append (string-join specialisations ", ") ".  ")
+                              "")
+                          (displayed points) " SP)")))
+
+(define (process-entity-hmm entity entity-no)
+  (dbg (dfmt "process-entity-hmm: " (pretty entity) nl))
+  ;; It might be a template, an item, or a full character.
+  (let* ((entity-name (may-exist "name" entity))
+         (tagline     (may-exist "tagline" entity))
+         (description (may-exist "description" entity))
+         (size        (may-exist "size" entity))
+         (stats       (may-exist "stats" entity))
+         (derived     (may-exist "derived" entity))
+         (attributes  (may-exist "attributes" entity))
+         (defects     (may-exist "defects" entity))
+         (skills      (may-exist "skills" entity))
+
+         (stats-total      (if stats (total-points stats) 0))
+         (attributes-total (if attributes (total-points attributes) 0))
+         (defects-total    (if defects (total-points defects) 0))
+         ;; Skills are not added to entity total!
+         (skills-total     (if skills (total-points skills) 0))
+         (entity-total     (+ stats-total attributes-total defects-total))
+         )
+
+    (depth+
+      (show #t (indent))
+      (cond (entity-name
+             (let* ((entity-header (show #f entity-name " ("
+                                         (label-points entity-total) ")"))
+                    )
+               (show #t entity-header nl)))
+            (else
+             (show #t (label-points entity-total) nl)))
+
+      (when tagline
+        (depth+ 
+          (show #t (indent) (italics (all-one-line (string-trim-both tagline))) nl)))
+
+      (when (and description (not *omit-entity-description*))
+        (depth+
+          (show #t (indent) (all-one-line description) " " nl)))
+    
+      (when size
+        (depth+ 
+          (show #t (indent) (bold "Size:") " " size nl)))
+
+      (when stats
+        (depth+
+          (show #t (indent) (bold "Statistics"))
+          (when *show-subtotals*
+            (show #t " (" (label-points stats-total) ") "))
+          (show #t nl)
+          (depth+
+            (show #t (indent))
+            (loop for stat in stats
+                  for i from 1
+                  when (> i 1) do (show #t ", ")
+                  do (process-stat-hmm stat))
+            (show  #t nl))))
+
+      (when derived
+        (depth+
+          (show #t (indent) (bold "Derived Values") nl)
+          (depth+
+            (show #t (indent))
+            (loop for d in derived
+                  for i from 1
+                  when (> i 1) do (show #t ", ")
+                  do (process-derived-hmm d))
+            (show #t nl))))
+
+      (when attributes
+        (depth+
+          (show #t (indent))
+          (if (mecha?)
+              (show #t (bold "Mecha Sub-Attributes"))
+              (show #t (bold "Attributes")))
+          (when *show-subtotals*
+            (show #t " (" (label-points attributes-total) ")"))
+          (show #t nl)
+          (depth+
+            (show #t (indent))
+            (loop for attribute in (sort attributes name-ci<?)
+                  for i from 1
+                  when (> i 1) do (show #t ", ")
+                  do (process-attribute-hmm attribute))
+            (show #t nl))))
+
+      (when defects
+        (depth+
+          (show #t (indent))
+          (if (mecha?)
+              (show #t (bold "Mecha Defects"))
+              (show #t (bold "Defects")))
+          (when *show-subtotals*
+            (show #t " (" (label-points defects-total) ")"))
+          (show #t nl)
+          (depth+
+            (show #t (indent))
+            (loop for defect in (sort defects name-ci<?)
+                  for i from 1
+                  when (> i 1) do (show #t ", ")
+                  do (process-defect-hmm defect))
+            (show #t nl))))
+
+      (when skills
+        (depth+
+          (show #t (indent) (bold "Skills"))
+          (when *show-subtotals*
+            (show #t " (" (displayed skills-total) " SP)"))
+          (show #t nl)
+          (depth+
+            (show #t (indent))
+            (loop for skill in (sort skills name-ci<?)
+                  for i from 1
+                  when (> i 1) do (show #t ", ")
+                  do (process-skill-hmm skill))
+            (show #t nl)))
+        ))))
+
 
 (define (tbold s)                       ; Troff bold.
   (cond
@@ -892,6 +1087,9 @@ as that looks better.")
 ;; Use an em-dash to separate the attribute name and level in terse mode.
 (define *em-dash* #f)
 (define *head-sep* #\=)
+(define *hmm-output* #f)
+(define *hmm-depth* (make-parameter 0))
+(define *hmm-root* #f)                  ; Don't output root if #f.
 (define *level* #f)
 (define *num-width* (max
                      (string-length "LEVEL")
@@ -933,6 +1131,16 @@ as that looks better.")
         (args:make-option
          (d debug) #:none "Turn on debugging."
          (set! *debugging* #t))
+        (args:make-option
+         (H hmm) #:none "Output in h-m-m format."
+         (set! *output-formatter* process-entity-hmm)
+         (set! *hmm-output* #t))
+        (args:make-option
+         (hmm-depth) #:required "Depth of h-m-m output."
+         (*hmm-depth* (string->number arg)))
+        (args:make-option
+         (hmm-root) #:required "Text for root node of h-m-m output."
+         (set! *hmm-root* arg))
         (args:make-option
          (h help) #:none "Display this text."
          (usage))
@@ -990,6 +1198,9 @@ as that looks better.")
 
     ;; When normally outputing reST bolding is two asterisks on each side.
     (set! *num-width* (+ *num-width* 4))
+
+    (when (and *hmm-output* *hmm-root*)
+      (show #t (indent) *hmm-root* nl))
 
     (if *output-file*
         (with-output-to-file *output-file* process-operands)
