@@ -705,11 +705,12 @@
          (specialisations (may-exist "specialisations" skill)))
     (show #t (emphasizing name
                           (if *em-dash* " — " " ")
-                          (if *level* "Level " "")level) " ("
+                          (if *level* "Level " "")
+                          level " ("
                           (if specialisations
                               (string-append (string-join specialisations ", ") ".  ")
                               "")
-                          (displayed points) " SP)")))
+                          (displayed points) " SP)"))))
 
 (define (process-entity-hmm entity entity-no)
   (dbg (dfmt "process-entity-hmm: " (pretty entity) nl))
@@ -764,7 +765,7 @@
             (show #t (indent))
             (loop for stat in stats
                   for i from 1
-                  when (> i 1) do (show #t ", ")
+                  when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-stat-hmm stat))
             (show  #t nl))))
 
@@ -775,7 +776,7 @@
             (show #t (indent))
             (loop for d in derived
                   for i from 1
-                  when (> i 1) do (show #t ", ")
+                  when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-derived-hmm d))
             (show #t nl))))
 
@@ -792,7 +793,7 @@
             (show #t (indent))
             (loop for attribute in (sort attributes name-ci<?)
                   for i from 1
-                  when (> i 1) do (show #t ", ")
+                  when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-attribute-hmm attribute))
             (show #t nl))))
 
@@ -809,7 +810,7 @@
             (show #t (indent))
             (loop for defect in (sort defects name-ci<?)
                   for i from 1
-                  when (> i 1) do (show #t ", ")
+                  when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-defect-hmm defect))
             (show #t nl))))
 
@@ -823,10 +824,9 @@
             (show #t (indent))
             (loop for skill in (sort skills name-ci<?)
                   for i from 1
-                  when (> i 1) do (show #t ", ")
+                  when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-skill-hmm skill))
-            (show #t nl)))
-        ))))
+            (show #t nl)))))))
 
 
 (define (tbold s)                       ; Troff bold.
@@ -1090,6 +1090,7 @@ as that looks better.")
 (define *hmm-output* #f)
 (define *hmm-depth* (make-parameter 0))
 (define *hmm-root* #f)                  ; Don't output root if #f.
+(define *hmm-separate* #f)              ; Default to not outputing subitems as separate h-m-m nodes.
 (define *level* #f)
 (define *num-width* (max
                      (string-length "LEVEL")
@@ -1136,11 +1137,14 @@ as that looks better.")
          (set! *output-formatter* process-entity-hmm)
          (set! *hmm-output* #t))
         (args:make-option
-         (hmm-depth) #:required "Depth of h-m-m output."
+         (L hmm-depth) #:required "Depth (Level) of h-m-m output."
          (*hmm-depth* (string->number arg)))
         (args:make-option
-         (hmm-root) #:required "Text for root node of h-m-m output."
+         (R hmm-root) #:required "Text for root node of h-m-m output."
          (set! *hmm-root* arg))
+        (args:make-option
+         (S hmm-separate) #:none "Output subitems as separate h-m-m nodes."
+         (set! *hmm-separate* #t))
         (args:make-option
          (h help) #:none "Display this text."
          (usage))
