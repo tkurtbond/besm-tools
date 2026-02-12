@@ -21,3 +21,4 @@ details..., CP)", etc.
 * TODO Add options to italicize or bold attribute names in ms-tbl output.
 * DONE Add h-m-m output mode.
 * DONE Add option to h-m-m output to output subitems as separate lines.
+* TODO Switch to libyaml egg, which handles multiple documents correctly.
