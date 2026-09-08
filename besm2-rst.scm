@@ -1081,7 +1081,12 @@
     (let ((entities (yaml-load (current-input-port))))
       (loop for entity in entities
             for entity-no from 1
-            do (parameterize ((mecha? (assoc "mecha" entity)))
+            ;; may-exist, not (assoc "mecha" entity) directly: assoc
+            ;; returns the found pair (truthy) whenever the key
+            ;; exists, regardless of its value, so "mecha: false"
+            ;; used to turn mecha mode ON same as "mecha: true" --
+            ;; may-exist unwraps to the actual #t/#f/absent value.
+            do (parameterize ((mecha? (may-exist "mecha" entity)))
                  (*output-formatter* entity entity-no))))))
 
 (define yaml-input-filename (make-parameter "(stdin)"))
