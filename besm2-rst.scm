@@ -120,6 +120,14 @@
 (define (negative-number->string points)
   (string-append (minus-glyph) (number->string (abs points))))
 
+;; points might be positive, negative, or zero -- e.g. defects-total
+;; (always <= 0, since it's a sum of always-negative defect points) or
+;; entity-total (a sum of stats/attributes/defects totals, which can
+;; go negative if defects outweigh the rest). Render it with the
+;; configured minus glyph when negative, otherwise plain.
+(define (points->string points)
+  (if (< points 0) (negative-number->string points) (number->string points)))
+
 (define (space-to-newline s)
   (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
 
@@ -448,7 +456,7 @@
               sum (process-defect defect)
               do (sep3)))
       (when *show-subtotals*
-        (row3 "" (text (hbolding (number->string defects-total)))
+        (row3 "" (text (hbolding (points->string defects-total)))
               (text (hbolding "DEFECTS TOTAL")))
         (sep3))
       (cond (*one-table* (empty))
@@ -473,7 +481,7 @@
     ;; Output total.
     (sep3)
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (row3 "" (text (hbolding (number->string entity-total)))
+    (row3 "" (text (hbolding (points->string entity-total)))
           (text (hbolding "TOTAL")))
     (sep3)
     (show #t nl)
@@ -1034,7 +1042,7 @@
         (loop for defect in (sort defects name-ci<?)
               sum (process-defect-raw-ms defect)))
       (when *show-subtotals*
-        (show #t *raw-prefix* "#" (tbold (number->string defects-total)) "#"
+        (show #t *raw-prefix* "#" (tbold (points->string defects-total)) "#"
               (tbold "DEFECTS TOTAL") nl))
       (show #t *raw-prefix* nl))
 
@@ -1057,7 +1065,7 @@
     ;; Output total.
     (set! entity-total (+ stats-total attributes-total defects-total))
     (when (> entity-total 0)
-      (show #t *raw-prefix* "#" (tbold (number->string entity-total)) "#"
+      (show #t *raw-prefix* "#" (tbold (points->string entity-total)) "#"
             (tbold "TOTAL") nl))
     (show #t *raw-prefix* "=" nl)
     (show #t *raw-prefix* ".TE" nl)
