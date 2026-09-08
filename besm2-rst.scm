@@ -706,11 +706,11 @@
     (show #t (emphasizing name
                           (if *em-dash* " — " " ")
                           (if *level* "Level " "")
-                          level " ("
+                          level) " ("
                           (if specialisations
                               (string-append (string-join specialisations ", ") ".  ")
                               "")
-                          (displayed points) " SP)"))))
+                          (displayed points) " SP)")))
 
 (define (process-entity-hmm entity entity-no)
   (dbg (dfmt "process-entity-hmm: " (pretty entity) nl))
