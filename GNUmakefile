@@ -22,6 +22,29 @@ TEST_TERSEOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -terse.gen
 # This is the list  of generated reST files using TBL tables in a raw block.
 TEST_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.gen.rst,$(basename $(f) .yaml)))
 
+# 2E-only: -n/--unicode-minus isn't implemented in besm4-rst.scm (yet),
+# so these variants -- which render negative numbers (defect points,
+# and enhancement/limiter signs) with Unicode MINUS SIGN instead of
+# ASCII hyphen-minus, for comparison against the default output above
+# -- only exist for the 2E test data.
+TEST_DATA_2E=$(filter %-2e.yaml,$(TEST_DATA))
+
+# This is the list of generated reST files using reST tables, with
+# Unicode MINUS SIGN instead of ASCII hyphen-minus for negative numbers.
+TEST_UNICODE_MINUS_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus.gen.rst,$(basename $(f) .yaml)))
+
+# This is the list of generated reST files using TBL tables in a raw
+# block, with Unicode MINUS SIGN instead of ASCII hyphen-minus for
+# negative numbers.
+TEST_UNICODE_MINUS_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus.gen.rst,$(basename $(f) .yaml)))
+
+# The letter-sized PDFs for the two Unicode-MINUS-SIGN variants above,
+# for comparing side by side against their hyphen-minus counterparts
+# in TEST_LETTEROUTPUT.
+TEST_UNICODE_MINUS_LETTEROUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus.ms.pdf,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus.ms.pdf,$(basename $(f) .yaml)))
+
 # This is the  list of statement-sized PDFs produced from reST tables, TBL tables, and terse mode.
 TEST_STMTOUTPUT=\
 	$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix .stmt.ms.pdf,$(basename $(f) .yaml))) \
@@ -86,6 +109,12 @@ tbl: rst $(TEST_TBLOUTPUT)
 
 html: rst $(TEST_HTMLOUTPUT)
 
+# The Unicode-MINUS-SIGN comparison variants (2E only -- see
+# TEST_DATA_2E above), plus their letter-sized PDFs.
+unicode-minus: rst \
+	$(TEST_UNICODE_MINUS_OUTPUT) $(TEST_UNICODE_MINUS_TBLOUTPUT) \
+	$(TEST_UNICODE_MINUS_LETTEROUTPUT)
+
 yamlerr: $(TEST_YAMLERROUTPUT)
 
 clean: testclean
@@ -121,6 +150,12 @@ build/%-2e-terse.gen.rst : test-data/%-2e.yaml build/besm2-rst
 
 build/%-2e-tbl.gen.rst : test-data/%-2e.yaml build/besm2-rst
 	build/besm2-rst -s -m $(BR2EOPTS) $< >$@ # ms tables
+
+build/%-2e-unicode-minus.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -n $(BR2EOPTS) $< >$@ # unicode minus sign
+
+build/%-2e-tbl-unicode-minus.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign
 
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
@@ -160,6 +195,7 @@ $(BINDIR)/% : build/%
 
 .PRECIOUS: \
 	build/%-4e.gen.rst build/%-4e-terse.gen.rst build/%-4e-tbl.gen.rst \
-	build/%-2e.gen.rst build/%-2e-terse.gen.rst build/%-2e-tbl.gen.rst
+	build/%-2e.gen.rst build/%-2e-terse.gen.rst build/%-2e-tbl.gen.rst \
+	build/%-2e-unicode-minus.gen.rst build/%-2e-tbl-unicode-minus.gen.rst
 
 print-%  : ; @echo $* = $($*)
