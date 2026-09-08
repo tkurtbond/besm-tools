@@ -10,7 +10,9 @@
 ;;;   use ASCII charater 45, Unicode hyphen-minus.  Things it doesn't,
 ;;;   like the contents of details, should use whichever is
 ;;;   appropriate in typeset text, like em and en dashes, Unicode
-;;;   MINUS SIGN, Unicode MULTIPLICATION SIGN, etc.
+;;;   MINUS SIGN, Unicode MULTIPLICATION SIGN, etc.  -n/--unicode-minus
+;;;   overrides this default and uses Unicode MINUS SIGN for negative
+;;;   numbers instead.
 ;;;   
 ;;; - Details is a string, not a list of strings, and it is not a
 ;;;   complete sentence (and is used as part of something else), so do
@@ -104,6 +106,19 @@
   (show #f (abs points) (if (mecha?)
                             (if (< points 0) " MBP" " MP")
                             (if (< points 0) " BP" " CP"))))
+
+;; The glyph used for a negative sign wherever this program builds one
+;; itself (as opposed to relying on number->string's own "-"): ASCII
+;; hyphen-minus by default (see the design-decision note at the top of
+;; the file), or Unicode MINUS SIGN (U+2212) under -n/--unicode-minus.
+(define (minus-glyph)
+  (if *unicode-minus* "−" "-"))
+
+;; points is known negative (defect points always are); render its
+;; magnitude with the configured minus glyph in front, instead of
+;; relying on number->string's own always-ASCII "-".
+(define (negative-number->string points)
+  (string-append (minus-glyph) (number->string (abs points))))
 
 (define (space-to-newline s)
   (string-map (lambda (c) (if (char=? c #\newline) #\space c)) s)) 
@@ -249,24 +264,25 @@
   ;; between Unicode MINUS SIGN and the following number is off,
   ;; probably due to bugs in the rendering software.  The spacing is
   ;; fine on macOS.  So use Unicode HYPEN-MINUS, ASCII -, code 45, despite
-  ;; it looking bad typographically.
+  ;; it looking bad typographically.  -n/--unicode-minus overrides this
+  ;; and uses Unicode MINUS SIGN instead.
   (loop for item in items
         collect (match item
                   [(? string? s)
                    (show #f (displayed s) " "
-                         (if (eq? type 'enhancement) "-1" "+1"))]
+                         (if (eq? type 'enhancement) (string-append (minus-glyph) "1") "+1"))]
                   [((? string? name) (? number? counts-as))
                    (show #f (displayed name) " "
-                         (if (eq? type 'enhancement) "-" "+")
+                         (if (eq? type 'enhancement) (minus-glyph) "+")
                          (displayed counts-as))]
                   [((? string? name) (? number? counts-as) (? string? applies-to))
                    (show #f (displayed name) ": " (displayed applies-to) " "
-                         (if (eq? type 'enhancement) "-" "+")
+                         (if (eq? type 'enhancement) (minus-glyph) "+")
                          (displayed counts-as))]
                   [((? string? name) (? number? counts-as) . applies-to)
                    (show #f (displayed name) ": "
                          (joined displayed applies-to ", ") " "
-                         (if (eq? type 'enhancement) "-" "+")
+                         (if (eq? type 'enhancement) (minus-glyph) "+")
                          (displayed counts-as))]
                   [_ (error 'format-customizers
                             "do not understand customizer" item)])))
@@ -331,7 +347,7 @@
     (dbg (dfmt "process-defect: before row3" nl))
     ;; Defect points are negative, but in rst that starts an itemized list,
     ;; so we put a backslash before them to quote them.
-    (row3 "" (string-append "\\" (number->string points)) description)
+    (row3 "" (string-append "\\" (negative-number->string points)) description)
     (dbg (dfmt "process-defect: after row3" nl))
     points))
 
@@ -899,7 +915,7 @@
          (description (if details (show #f name " ("
                                         (space-to-newline details) ")") name))
          )
-    (show #t *raw-prefix* "#" points "#T{" nl
+    (show #t *raw-prefix* "#" (negative-number->string points) "#T{" nl
           *raw-prefix* description nl
           *raw-prefix* "T}" nl)
     points))
@@ -1103,6 +1119,10 @@ as that looks better.")
 (define *omit-entity-description* #f)
 (define *show-subtotals* #f)
 (define *table-width* 60)
+;; Use Unicode MINUS SIGN (U+2212) instead of ASCII hyphen-minus for
+;; negative numbers this program builds itself (defect points, and
+;; enhancement/limiter signs in format-customizers).
+(define *unicode-minus* #f)
 (define *underliner* #\-)
 (define *subunderliner* #f)
 (define *page-after-description* #f)
@@ -1164,6 +1184,10 @@ as that looks better.")
         (args:make-option
          (m raw-ms-tables) #:none "Use groff tbl output in a raw ms block."
          (set! *output-formatter* process-entity-raw-ms))
+        (args:make-option
+         (n unicode-minus) #:none "Use Unicode MINUS SIGN (U+2212) instead
+                          of ASCII hyphen-minus for negative numbers."
+         (set! *unicode-minus* #t))
         (args:make-option
          (o output) #:required "Output file."
          (set! *output-file* arg))
