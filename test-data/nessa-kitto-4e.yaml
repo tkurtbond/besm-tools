@@ -41,6 +41,7 @@
       details: Appearance
     - name: "Item: FV2021 Coleopteran"
       points: 35
+      no-level: true
     - name: Skills
       level: 2
       points: 2

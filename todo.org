@@ -22,16 +22,37 @@ details..., CP)", etc.
 * DONE Add h-m-m output mode.
 * DONE Add option to h-m-m output to output subitems as separate lines.
 * TODO Switch to libyaml egg, which handles multiple documents correctly.
-* TODO BUG: process-attribute*'s Level should be required, not optional.
+* DONE BUG: process-attribute*'s Level should be required, not optional.
 Checked BESM 2nd Edition Revised directly: all Attributes, including
 mecha Attributes, have a required Level. But every process-attribute*
-variant in both besm2-rst.scm and besm4-rst.scm reads it with
+variant in both besm2-rst.scm and besm4-rst.scm read it with
 `(may-exist "level" attribute)`, not `(must-exist "level" attribute)`
 -- Skill already correctly uses must-exist for its Level, Attribute
-should too. Confirmed present in both files (besm2-rst.scm lines 330,
-515, 694, 897; besm4-rst.scm lines 285, 471, 649) -- besm2-rst.scm was
+should too. Was present in both files (besm2-rst.scm lines 330, 515,
+694, 897; besm4-rst.scm lines 285, 471, 649) -- besm2-rst.scm was
 copied from besm4-rst.scm, so this looks like an inherited bug, not
-something introduced by the copy. Needs fixing in both besm2-rst.scm
-and besm4-rst.scm, then besm2_fmt (the Ada port of besm2-rst.scm,
-~/Repos/RPG/Tools/besm2_fmt, PLAN.md's Open Questions) needs the same
-fix ported over and its golden test-data output re-verified.
+something introduced by the copy.
+
+Fixed in besm2-rst.scm by switching all four sites to must-exist.
+
+besm4-rst.scm needed one more thing first: BESM4E's Item Attribute
+(page 101, "Attribute Cost: One-Half Normal Value ... Items are not
+ranked in Levels like other Attributes") genuinely has no Level --
+confirmed against the rulebook, not just inferred from the shared
+besm2-rst.scm/besm4-rst.scm origin. The six `Item: FV2021 Coleopteran`
+entries in test-data/*-4e.yaml are real instances of this. So
+besm4-rst.scm's fix is: Level required everywhere, *except* when an
+Attribute carries an explicit `no-level: true` field (checked with
+may-exist, same pattern as the entity-level `mecha:` flag) -- added
+that field to the six existing Item entries rather than special-casing
+on the "Item:" name prefix. Golden `build/*.gen.rst` output confirmed
+byte-for-byte identical to before the fix (the old
+`(if level level "")` fallback already rendered "" for these entries,
+so nothing visible changed -- only the failure mode for a genuinely
+missing Level, with no `no-level` flag, changed from silent blank to
+an error).
+
+Next: port the same fix to besm2_fmt (the Ada port of besm2-rst.scm,
+~/Repos/RPG/Tools/besm2_fmt, PLAN.md's Open Questions) and re-verify
+its golden test-data output. besm2_fmt has no besm4 analog yet, so the
+`no-level`/Item case doesn't apply there.

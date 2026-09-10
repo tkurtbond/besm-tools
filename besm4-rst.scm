@@ -282,8 +282,8 @@
   (dbg (dfmt "process-attribute: " (pretty attribute) nl))
   ;; returns the cost of the attribute
   (let* ((name         (must-exist "name" attribute))
-         (level        (may-exist "level" attribute))
-         (level        (if level level ""))
+         (no-level?    (may-exist "no-level" attribute))
+         (level        (if no-level? "" (must-exist "level" attribute)))
          (points       (must-exist "points" attribute))
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
@@ -468,8 +468,8 @@
   (dbg (dfmt "process-attribute-terse: " (pretty attribute) nl))
   ;; returns the cost of the attribute
   (let* ((name         (must-exist "name" attribute))
-         (level        (may-exist "level" attribute))
-         (level        (if level level ""))
+         (no-level?    (may-exist "no-level" attribute))
+         (level        (if no-level? "" (must-exist "level" attribute)))
          (points       (must-exist "points" attribute))
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
@@ -646,8 +646,8 @@
   (dbg (dfmt "process-attribute-raw-ms: " (pretty attribute) nl))
   ;; returns the cost of the attribute
   (let* ((name         (must-exist "name" attribute))
-         (level        (may-exist "level" attribute))
-         (level        (if level level ""))
+         (no-level?    (may-exist "no-level" attribute))
+         (level        (if no-level? "" (must-exist "level" attribute)))
          (points       (must-exist "points" attribute))
          (details      (may-exist  "details" attribute))
          (details      (if details (string-trim-both details) details))
