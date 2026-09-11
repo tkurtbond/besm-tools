@@ -6,8 +6,15 @@ endif
 BROPTS=
 BR2EOPTS=
 
-# Number of repetitions of besm2-rst run by benchmark-fyaml, for each
-# of the yaml egg and the slibfyaml egg (-f/--fyaml).
+# Number of repetitions of besm2-rst/besm2-rst-f run by
+# benchmark-fyaml on each *small* test-data file, for each of the
+# three programs compared (yaml egg, slibfyaml egg -f/--fyaml, and
+# besm2-rst-f). Note: build/benchmark-fyaml.out only reruns when its
+# file prerequisites are newer than it (see below), so changing
+# BENCH_N/BENCHMARK_LARGE_RUNS alone, with no file touched, will not
+# by itself trigger a rerun -- force one with
+# "rm -f build/benchmark-fyaml.out && make benchmark-fyaml" or
+# "make -B benchmark-fyaml".
 BENCH_N=20
 
 # besm-totals is retired.
@@ -36,6 +43,19 @@ TEST_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA)),build/$(addsuffix -tbl.gen.rst
 # ASCII hyphen-minus, for comparison against the default output above
 # -- only exist for the 2E test data.
 TEST_DATA_2E=$(filter %-2e.yaml,$(TEST_DATA))
+
+# Synthetic large 2E YAML files used only by benchmark-fyaml, to see
+# whether the yaml-egg/slibfyaml-egg(-f)/besm2-rst-f performance gap
+# widens with input size: each repeats the single entity in
+# enyon-boase-2e.yaml the given number of times. Generated on demand
+# into build/, not kept in test-data/, since they exist purely to
+# stress-test parsing speed, not as realistic character data.
+BENCHMARK_LARGE_SIZES=1 100 500 1500
+# Repetition counts paired positionally with BENCHMARK_LARGE_SIZES
+# above -- fewer runs for the larger, slower files, so the whole sweep
+# finishes in a reasonable time. Change both lists together.
+BENCHMARK_LARGE_RUNS=200 10 5 3
+BENCHMARK_LARGE_FILES=$(BENCHMARK_LARGE_SIZES:%=build/synthetic-%.yaml)
 
 # This is the list of generated reST files using reST tables, with
 # Unicode MINUS SIGN instead of ASCII hyphen-minus for negative numbers.
@@ -210,25 +230,66 @@ compare-treefyaml: treefyaml
 	done; \
 	exit $$status
 
-# Compare wall-clock/user/sys time for besm2-rst run BENCH_N times with
-# the yaml egg vs. the slibfyaml egg (-f/--fyaml), on each 2E test file.
-# Override BENCH_N=n on the command line to change the repetition count.
-benchmark-fyaml: build/besm2-rst
-	@TIMEFORMAT='  %3lR real  %3lU user  %3lS sys'; \
+# Convenience alias for the log below -- kept as a separate name (with
+# no recipe of its own) so "make benchmark-fyaml" still works as
+# before; it just now only reruns build/benchmark-fyaml.out's recipe
+# when that file's own prerequisites say it's stale (see BENCH_N's
+# comment above for how to force a rerun otherwise).
+benchmark-fyaml: build/benchmark-fyaml.out
+
+# The raw timing log the two generated tables below are parsed from:
+# for each small test-data file and each synthetic large file, for
+# each of the three programs (yaml egg, slibfyaml egg -f/--fyaml, and
+# besm2-rst-f -- slibfyaml's handle/tree-based document API), one
+# line "RESULT category label program runs total-real-seconds", where
+# total-real-seconds is bash's own `time` builtin's real elapsed time
+# for the *whole* runs-repetition loop (not per run -- benchmark-
+# report.py divides by runs itself). category is "small" (label is
+# the test-data file's base name) or "large" (label is the synthetic
+# file's entity count).
+build/benchmark-fyaml.out: build/besm2-rst build/besm2-rst-f \
+		$(TEST_DATA_2E) $(BENCHMARK_LARGE_FILES)
+	@TIMEFORMAT='%R'; \
+	: >$@; \
+	run_case() { \
+		category=$$1; label=$$2; file=$$3; runs=$$4; \
+		for prog in yaml fyaml treefyaml; do \
+			case $$prog in \
+				yaml)      cmd="build/besm2-rst -s $(BR2EOPTS) $$file" ;; \
+				fyaml)     cmd="build/besm2-rst -s -f $(BR2EOPTS) $$file" ;; \
+				treefyaml) cmd="build/besm2-rst-f -s $(BR2EOPTS) $$file" ;; \
+			esac; \
+			echo "=== $$label ($$runs runs, $$prog) ==="; \
+			real=$$( { time ( for i in $$(seq 1 $$runs); do \
+				$$cmd >/dev/null; \
+			done ); } 2>&1 >/dev/null ); \
+			echo "RESULT $$category $$label $$prog $$runs $$real" >>$@; \
+		done; \
+	}; \
 	for f in $(TEST_DATA_2E); do \
-		echo "=== $$f ($(BENCH_N) runs) ==="; \
-		echo "--- yaml egg ---"; \
-		time ( for i in $$(seq 1 $(BENCH_N)); do \
-			build/besm2-rst -s $(BR2EOPTS) $$f >/dev/null; \
-		done ); \
-		echo "--- slibfyaml egg (-f/--fyaml) ---"; \
-		time ( for i in $$(seq 1 $(BENCH_N)); do \
-			build/besm2-rst -s -f $(BR2EOPTS) $$f >/dev/null; \
-		done ); \
+		run_case small $$(basename $$f) $$f $(BENCH_N); \
+	done; \
+	sizes=($(BENCHMARK_LARGE_SIZES)); runs=($(BENCHMARK_LARGE_RUNS)); \
+	for i in $${!sizes[@]}; do \
+		run_case large $${sizes[$$i]} build/synthetic-$${sizes[$$i]}.yaml $${runs[$$i]}; \
 	done
 
-# Render the benchmark-fyaml.rst write-up (yaml vs. slibfyaml egg
-# comparison) to PDF and HTML.
+# The two reST grid tables benchmark-fyaml.rst pulls in with
+# ".. include::" -- one for the small test-data files, one for the
+# synthetic large files -- parsed out of the timing log above.
+build/benchmark-fyaml-small.gen.rst build/benchmark-fyaml-large.gen.rst &: \
+		build/benchmark-fyaml.out benchmark-report.py
+	python3 benchmark-report.py build/benchmark-fyaml.out \
+		build/benchmark-fyaml-small.gen.rst \
+		build/benchmark-fyaml-large.gen.rst
+
+# Render the benchmark-fyaml.rst write-up (yaml egg vs. slibfyaml egg
+# vs. besm2-rst-f comparison) to PDF and HTML. Depends transitively,
+# through the two generated tables above, on build/benchmark-fyaml.out
+# and (through that) on both programs and every small/synthetic test
+# file -- so this rebuilds whenever a benchmark rerun would actually
+# change the numbers, without needing an explicit "make benchmark-
+# fyaml" first.
 benchmark-fyaml-report: build/benchmark-fyaml.ms.pdf build/benchmark-fyaml.html
 
 yamlerr: $(TEST_YAMLERROUTPUT)
@@ -238,7 +299,8 @@ clean: testclean
 testclean:
 	-rm -v	build/*.gen.rst build/*.ms.pdf \
 		build/*.native build/*.ms \
-		build/*.html build/*.yamlerr
+		build/*.html build/*.yamlerr \
+		build/synthetic-*.yaml build/benchmark-fyaml.out
 
 BINDIR=$(HOME)/local/bin
 install: $(foreach e,$(PROGRAMS:%=%$(EXE)),$(BINDIR)/$(notdir $(e)))
@@ -311,6 +373,14 @@ build/%-2e-unicode-minus-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
 build/%-2e-tbl-unicode-minus-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
 	build/besm2-rst-f -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, handle/tree slibfyaml
 
+# A synthetic large 2E YAML file for benchmark-fyaml: the body of
+# enyon-boase-2e.yaml (everything after its leading "---") repeated N
+# times, which is already a valid way to get an N-entity YAML
+# sequence, since each repetition's own "- name: ..." starts a new
+# list item at the top level.
+build/synthetic-%.yaml : test-data/enyon-boase-2e.yaml
+	{ echo '---'; for i in $$(seq 1 $*); do tail -n +2 $<; done; } >$@
+
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
 
@@ -342,11 +412,17 @@ build/%-terse.html : build/%-terse.gen.rst
 # benchmark-fyaml.rst is a plain reST file at the top of the tree, not
 # one of the generated %.gen.rst files above, so it needs its own
 # explicit rules instead of the generic build/%.ms.pdf / build/%.html
-# pattern rules.
-build/benchmark-fyaml.ms.pdf : benchmark-fyaml.rst
+# pattern rules. It also ".. include::"s the two generated benchmark
+# tables, so both are prerequisites here too -- pandoc has no way to
+# see through an include on its own, so without this, editing just
+# the tables (e.g. via a fresh "make benchmark-fyaml") would leave
+# these outputs stale.
+build/benchmark-fyaml.ms.pdf : benchmark-fyaml.rst \
+		build/benchmark-fyaml-small.gen.rst build/benchmark-fyaml-large.gen.rst
 	pandoc -r rst -w ms --template=tkb $(MS_COLUMNS) -o $@ $<
 
-build/benchmark-fyaml.html : benchmark-fyaml.rst
+build/benchmark-fyaml.html : benchmark-fyaml.rst \
+		build/benchmark-fyaml-small.gen.rst build/benchmark-fyaml-large.gen.rst
 	pandoc -s -r rst -w html -o $@ $<
 
 
