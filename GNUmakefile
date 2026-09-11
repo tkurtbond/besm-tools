@@ -6,6 +6,10 @@ endif
 BROPTS=
 BR2EOPTS=
 
+# Number of repetitions of besm2-rst run by benchmark-fyaml, for each
+# of the yaml egg and the slibfyaml egg (-f/--fyaml).
+BENCH_N=20
+
 # besm-totals is retired.
 INSTALL_PROGRAMS=besm4-rst besm2-rst
 OTHER_PROGRAMS=
@@ -44,6 +48,21 @@ TEST_UNICODE_MINUS_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsu
 TEST_UNICODE_MINUS_LETTEROUTPUT=\
 	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus.ms.pdf,$(basename $(f) .yaml))) \
 	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus.ms.pdf,$(basename $(f) .yaml)))
+
+# besm2-rst can load YAML using either the yaml egg (the default) or
+# the slibfyaml egg (-f/--fyaml). The lists and rules below build
+# every besm2-rst reST variant (plain, terse, TBL, and the
+# Unicode-MINUS-SIGN variants) a second time using -f, with "-fyaml"
+# appended to the file name, so the two eggs' output can be diffed
+# (see compare-fyaml) and their speed compared (see benchmark-fyaml).
+# 2E-only, since besm2-rst only handles 2E test data.
+ENTITY_NAMES_2E=$(basename $(notdir $(TEST_DATA_2E)) .yaml)
+
+TEST_FYAML_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -fyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_TERSEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -terse-fyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_TBLFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-fyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_FYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus-fyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_TBLFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus-fyaml.gen.rst,$(basename $(f) .yaml)))
 
 # This is the  list of statement-sized PDFs produced from reST tables, TBL tables, and terse mode.
 TEST_STMTOUTPUT=\
@@ -115,6 +134,51 @@ unicode-minus: rst \
 	$(TEST_UNICODE_MINUS_OUTPUT) $(TEST_UNICODE_MINUS_TBLOUTPUT) \
 	$(TEST_UNICODE_MINUS_LETTEROUTPUT)
 
+# Every besm2-rst variant (plain, terse, TBL, and the Unicode-MINUS-SIGN
+# variants), built with the slibfyaml egg (-f/--fyaml) instead of the
+# yaml egg, for comparison against the default output built by "rst"
+# and "unicode-minus".
+fyaml: rst unicode-minus \
+	$(TEST_FYAML_OUTPUT) $(TEST_TERSEFYAMLOUTPUT) $(TEST_TBLFYAMLOUTPUT) \
+	$(TEST_UNICODE_MINUS_FYAMLOUTPUT) $(TEST_UNICODE_MINUS_TBLFYAMLOUTPUT)
+
+# Diff each yaml-egg reST file against its slibfyaml-egg counterpart
+# and report which pairs match and which differ.
+compare-fyaml: fyaml
+	@status=0; \
+	for base in $(ENTITY_NAMES_2E); do \
+		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			yamlf=build/$$base$$suf; \
+			fyamlf=build/$$base$${suf%.gen.rst}-fyaml.gen.rst; \
+			if diff -q $$yamlf $$fyamlf >/dev/null 2>&1; then \
+				echo "MATCH:   $$yamlf == $$fyamlf"; \
+			else \
+				echo "DIFFER:  $$yamlf != $$fyamlf"; \
+				diff -u $$yamlf $$fyamlf; \
+				status=1; \
+			fi; \
+		done; \
+	done; \
+	exit $$status
+
+# Compare wall-clock/user/sys time for besm2-rst run BENCH_N times with
+# the yaml egg vs. the slibfyaml egg (-f/--fyaml), on each 2E test file.
+# Override BENCH_N=n on the command line to change the repetition count.
+benchmark-fyaml: build/besm2-rst
+	@TIMEFORMAT='  %3lR real  %3lU user  %3lS sys'; \
+	for f in $(TEST_DATA_2E); do \
+		echo "=== $$f ($(BENCH_N) runs) ==="; \
+		echo "--- yaml egg ---"; \
+		time ( for i in $$(seq 1 $(BENCH_N)); do \
+			build/besm2-rst -s $(BR2EOPTS) $$f >/dev/null; \
+		done ); \
+		echo "--- slibfyaml egg (-f/--fyaml) ---"; \
+		time ( for i in $$(seq 1 $(BENCH_N)); do \
+			build/besm2-rst -s -f $(BR2EOPTS) $$f >/dev/null; \
+		done ); \
+	done
+
 yamlerr: $(TEST_YAMLERROUTPUT)
 
 clean: testclean
@@ -157,6 +221,23 @@ build/%-2e-unicode-minus.gen.rst : test-data/%-2e.yaml build/besm2-rst
 build/%-2e-tbl-unicode-minus.gen.rst : test-data/%-2e.yaml build/besm2-rst
 	build/besm2-rst -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign
 
+# The same variants as above, but loading the YAML with the slibfyaml
+# egg (-f/--fyaml) instead of the yaml egg, for comparison.
+build/%-2e-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -f $(BR2EOPTS) $< >$@ # fyaml egg
+
+build/%-2e-terse-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -t -f $(BR2EOPTS) $< >$@ # terse, fyaml egg
+
+build/%-2e-tbl-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -m -f $(BR2EOPTS) $< >$@ # ms tables, fyaml egg
+
+build/%-2e-unicode-minus-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -n -f $(BR2EOPTS) $< >$@ # unicode minus sign, fyaml egg
+
+build/%-2e-tbl-unicode-minus-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -m -n -f $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, fyaml egg
+
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
 
@@ -196,6 +277,9 @@ $(BINDIR)/% : build/%
 .PRECIOUS: \
 	build/%-4e.gen.rst build/%-4e-terse.gen.rst build/%-4e-tbl.gen.rst \
 	build/%-2e.gen.rst build/%-2e-terse.gen.rst build/%-2e-tbl.gen.rst \
-	build/%-2e-unicode-minus.gen.rst build/%-2e-tbl-unicode-minus.gen.rst
+	build/%-2e-unicode-minus.gen.rst build/%-2e-tbl-unicode-minus.gen.rst \
+	build/%-2e-fyaml.gen.rst build/%-2e-terse-fyaml.gen.rst \
+	build/%-2e-tbl-fyaml.gen.rst build/%-2e-unicode-minus-fyaml.gen.rst \
+	build/%-2e-tbl-unicode-minus-fyaml.gen.rst
 
 print-%  : ; @echo $* = $($*)
