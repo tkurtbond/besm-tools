@@ -73,6 +73,9 @@
 (import (srfi 1))
 (import (srfi 152))
 (import yaml)
+(import (rename (only (slibfyaml scheme) load-port) (load-port fyaml-load)))
+
+(define load-from-yaml yaml-load)
 
 (define-syntax dbg
   (syntax-rules ()
@@ -1074,7 +1077,7 @@
       (begin
         (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
         (print-error-message exn (current-error-port)))
-    (let ((entities (yaml-load (current-input-port))))
+    (let ((entities (load-from-yaml (current-input-port))))
       (loop for entity in entities
             for entity-no from 1
             ;; may-exist, not (assoc "mecha" entity) directly: assoc
@@ -1161,6 +1164,9 @@ as that looks better.")
         (args:make-option
          (d debug) #:none "Turn on debugging."
          (set! *debugging* #t))
+        (args:make-option
+         (f fyaml) #:none "Use fyaml via slibfyaml egg instead of using the yaml egg."
+         (set! load-from-yaml fyaml-load))
         (args:make-option
          (H hmm) #:none "Output in h-m-m format."
          (set! *output-formatter* process-entity-hmm)
