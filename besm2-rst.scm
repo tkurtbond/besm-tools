@@ -77,6 +77,16 @@
 
 (define load-from-yaml yaml-load)
 
+;; fyaml-load (slibfyaml's load-port) always returns a list of decoded
+;; documents, one per YAML document in the stream -- even for
+;; single-document input, unlike yaml-load, which hands back the
+;; document's decoded value directly. All of this program's input files
+;; are a single YAML document (one leading "---", no second "---"), so
+;; unwrap to that one document's value here to give -f/--fyaml the same
+;; contract as the default yaml-load.
+(define (fyaml-load-entities port)
+  (car (fyaml-load port)))
+
 (define-syntax dbg
   (syntax-rules ()
     ((_ e1 e2 ...)
@@ -1166,7 +1176,7 @@ as that looks better.")
          (set! *debugging* #t))
         (args:make-option
          (f fyaml) #:none "Use fyaml via slibfyaml egg instead of using the yaml egg."
-         (set! load-from-yaml fyaml-load))
+         (set! load-from-yaml fyaml-load-entities))
         (args:make-option
          (H hmm) #:none "Output in h-m-m format."
          (set! *output-formatter* process-entity-hmm)
