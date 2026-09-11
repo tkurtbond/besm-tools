@@ -5,3 +5,6 @@
 .~*\#
 \#*\#
 build/**
+# csc -J's import-library byproducts for besm2-rst-e/besm2-rst-f-e
+# (written to the current directory, not build/ -- see GNUmakefile).
+*.import.scm

@@ -23,7 +23,15 @@ INSTALL_PROGRAMS=besm4-rst besm2-rst
 # handle/tree-based document API instead of materializing it up front
 # -- a comparison variant (see treefyaml/compare-treefyaml below), not
 # something to install alongside the two programs above.
-OTHER_PROGRAMS=besm2-rst-f
+#
+# besm2-rst-e/besm2-rst-f-e are besm2-rst/besm2-rst-f again, each
+# further refactored to decode every entity exactly once into a shared
+# record (besm-entities.scm) instead of re-deriving the same fields
+# separately in each of four output backends -- comparison variants
+# too (see entity/compare-entity and entitytree/compare-entitytree
+# below). Both link besm-entities.scm in alongside their own .scm file
+# (see their build/% rules below), unlike every other program here.
+OTHER_PROGRAMS=besm2-rst-f besm2-rst-e besm2-rst-f-e
 PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
 
 TEST_DATA=$(wildcard test-data/*.yaml)
@@ -101,6 +109,30 @@ TEST_TERSETREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffi
 TEST_TBLTREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-treefyaml.gen.rst,$(basename $(f) .yaml)))
 TEST_UNICODE_MINUS_TREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus-treefyaml.gen.rst,$(basename $(f) .yaml)))
 TEST_UNICODE_MINUS_TBLTREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus-treefyaml.gen.rst,$(basename $(f) .yaml)))
+
+# The same five variants again, built by besm2-rst-e -- besm2-rst
+# refactored to decode each entity once into a shared record
+# (besm-entities.scm) instead of re-deriving fields separately in each
+# of four output backends, but still loading YAML the same way
+# besm2-rst's default (yaml egg) path does -- with "-entity" appended
+# to the file name, so its output can be diffed against the plain
+# yaml-egg output (see compare-entity).
+TEST_ENTITY_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -entity.gen.rst,$(basename $(f) .yaml)))
+TEST_TERSEENTITYOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -terse-entity.gen.rst,$(basename $(f) .yaml)))
+TEST_TBLENTITYOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-entity.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_ENTITYOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus-entity.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_TBLENTITYOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus-entity.gen.rst,$(basename $(f) .yaml)))
+
+# The same five variants again, built by besm2-rst-f-e -- besm2-rst-f
+# (handle/tree slibfyaml) again refactored the same way besm2-rst-e
+# refactors besm2-rst -- with "-entitytree" appended to the file name,
+# so its output can be diffed against the plain yaml-egg output (see
+# compare-entitytree).
+TEST_ENTITYTREE_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -entitytree.gen.rst,$(basename $(f) .yaml)))
+TEST_TERSEENTITYTREEOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -terse-entitytree.gen.rst,$(basename $(f) .yaml)))
+TEST_TBLENTITYTREEOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-entitytree.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_ENTITYTREEOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus-entitytree.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_TBLENTITYTREEOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus-entitytree.gen.rst,$(basename $(f) .yaml)))
 
 # This is the  list of statement-sized PDFs produced from reST tables, TBL tables, and terse mode.
 TEST_STMTOUTPUT=\
@@ -230,6 +262,67 @@ compare-treefyaml: treefyaml
 	done; \
 	exit $$status
 
+# Every besm2-rst-e variant (plain, terse, TBL, and the
+# Unicode-MINUS-SIGN variants), built with besm2-rst-e -- besm2-rst
+# refactored to decode each entity once into a shared record instead
+# of re-deriving fields in each output backend, but otherwise loading
+# YAML the same way besm2-rst's default path does -- for comparison
+# against the default yaml-egg output built by "rst" and
+# "unicode-minus" (see compare-entity).
+entity: rst unicode-minus \
+	$(TEST_ENTITY_OUTPUT) $(TEST_TERSEENTITYOUTPUT) $(TEST_TBLENTITYOUTPUT) \
+	$(TEST_UNICODE_MINUS_ENTITYOUTPUT) $(TEST_UNICODE_MINUS_TBLENTITYOUTPUT)
+
+# Diff each yaml-egg reST file against its besm2-rst-e (shared entity
+# record) counterpart and report which pairs match and which differ.
+compare-entity: entity
+	@status=0; \
+	for base in $(ENTITY_NAMES_2E); do \
+		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			yamlf=build/$$base$$suf; \
+			entityf=build/$$base$${suf%.gen.rst}-entity.gen.rst; \
+			if diff -q $$yamlf $$entityf >/dev/null 2>&1; then \
+				echo "MATCH:   $$yamlf == $$entityf"; \
+			else \
+				echo "DIFFER:  $$yamlf != $$entityf"; \
+				diff -u $$yamlf $$entityf; \
+				status=1; \
+			fi; \
+		done; \
+	done; \
+	exit $$status
+
+# Every besm2-rst-f-e variant (plain, terse, TBL, and the
+# Unicode-MINUS-SIGN variants), built with besm2-rst-f-e -- besm2-rst-f
+# refactored the same way besm2-rst-e refactors besm2-rst -- for
+# comparison against the default yaml-egg output built by "rst" and
+# "unicode-minus" (see compare-entitytree).
+entitytree: rst unicode-minus \
+	$(TEST_ENTITYTREE_OUTPUT) $(TEST_TERSEENTITYTREEOUTPUT) $(TEST_TBLENTITYTREEOUTPUT) \
+	$(TEST_UNICODE_MINUS_ENTITYTREEOUTPUT) $(TEST_UNICODE_MINUS_TBLENTITYTREEOUTPUT)
+
+# Diff each yaml-egg reST file against its besm2-rst-f-e (handle/tree,
+# shared entity record) counterpart and report which pairs match and
+# which differ.
+compare-entitytree: entitytree
+	@status=0; \
+	for base in $(ENTITY_NAMES_2E); do \
+		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			yamlf=build/$$base$$suf; \
+			entitytreef=build/$$base$${suf%.gen.rst}-entitytree.gen.rst; \
+			if diff -q $$yamlf $$entitytreef >/dev/null 2>&1; then \
+				echo "MATCH:   $$yamlf == $$entitytreef"; \
+			else \
+				echo "DIFFER:  $$yamlf != $$entitytreef"; \
+				diff -u $$yamlf $$entitytreef; \
+				status=1; \
+			fi; \
+		done; \
+	done; \
+	exit $$status
+
 # Convenience alias for the log below -- kept as a separate name (with
 # no recipe of its own) so "make benchmark-fyaml" still works as
 # before; it just now only reruns build/benchmark-fyaml.out's recipe
@@ -296,6 +389,7 @@ yamlerr: $(TEST_YAMLERROUTPUT)
 
 clean: testclean
 	-rm -v $(PROGRAMS)
+	-rm -v besm-entities.import.scm besm-rst.import.scm
 testclean:
 	-rm -v	build/*.gen.rst build/*.ms.pdf \
 		build/*.native build/*.ms \
@@ -373,6 +467,46 @@ build/%-2e-unicode-minus-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
 build/%-2e-tbl-unicode-minus-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
 	build/besm2-rst-f -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, handle/tree slibfyaml
 
+# The same variants again, but built with besm2-rst-e, which decodes
+# each entity once into a shared record (besm-entities.scm) instead of
+# re-deriving the same fields separately in each output backend, while
+# still loading YAML the same way besm2-rst's default (yaml-egg) path
+# does -- for comparison against the default output (see
+# compare-entity).
+build/%-2e-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -s $(BR2EOPTS) $< >$@ # shared entity record
+
+build/%-2e-terse-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -s -t $(BR2EOPTS) $< >$@ # terse, shared entity record
+
+build/%-2e-tbl-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -s -m $(BR2EOPTS) $< >$@ # ms tables, shared entity record
+
+build/%-2e-unicode-minus-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -s -n $(BR2EOPTS) $< >$@ # unicode minus sign, shared entity record
+
+build/%-2e-tbl-unicode-minus-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, shared entity record
+
+# The same variants again, but built with besm2-rst-f-e, which is
+# besm2-rst-f (handle/tree slibfyaml) refactored the same way
+# besm2-rst-e refactors besm2-rst -- for comparison against the
+# default output (see compare-entitytree).
+build/%-2e-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -s $(BR2EOPTS) $< >$@ # handle/tree, shared entity record
+
+build/%-2e-terse-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -s -t $(BR2EOPTS) $< >$@ # terse, handle/tree, shared entity record
+
+build/%-2e-tbl-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -s -m $(BR2EOPTS) $< >$@ # ms tables, handle/tree, shared entity record
+
+build/%-2e-unicode-minus-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -s -n $(BR2EOPTS) $< >$@ # unicode minus sign, handle/tree, shared entity record
+
+build/%-2e-tbl-unicode-minus-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, handle/tree, shared entity record
+
 # A synthetic large 2E YAML file for benchmark-fyaml: the body of
 # enyon-boase-2e.yaml (everything after its leading "---") repeated N
 # times, which is already a valid way to get an N-entity YAML
@@ -426,6 +560,21 @@ build/benchmark-fyaml.html : benchmark-fyaml.rst \
 	pandoc -s -r rst -w html -o $@ $<
 
 
+# besm2-rst-e/besm2-rst-f-e each link besm-entities.scm in alongside
+# their own file (besm-entities.scm first, so its compile-time module
+# info exists before the file that (import)s it is compiled), and need
+# -J/-emit-all-import-libraries so that import actually resolves --
+# unlike every other program built by the generic build/% rule below,
+# neither is a single self-contained .scm file. This also writes
+# besm-entities.import.scm/besm-rst.import.scm build byproducts into
+# the current directory (not build/, since that's simply where csc's
+# -J puts them); .gitignore'd, and removed by "make clean" below.
+build/besm2-rst-e : besm-entities.scm besm2-rst-e.scm
+	$(CSC) $(CSCFLAGS) -J -o $@ $^
+
+build/besm2-rst-f-e : besm-entities.scm besm2-rst-f-e.scm
+	$(CSC) $(CSCFLAGS) -J -o $@ $^
+
 build/% : %.scm
 	$(CSC) $(CSCFLAGS) -o $@ $^
 
@@ -442,6 +591,12 @@ $(BINDIR)/% : build/%
 	build/%-2e-tbl-unicode-minus-fyaml.gen.rst \
 	build/%-2e-treefyaml.gen.rst build/%-2e-terse-treefyaml.gen.rst \
 	build/%-2e-tbl-treefyaml.gen.rst build/%-2e-unicode-minus-treefyaml.gen.rst \
-	build/%-2e-tbl-unicode-minus-treefyaml.gen.rst
+	build/%-2e-tbl-unicode-minus-treefyaml.gen.rst \
+	build/%-2e-entity.gen.rst build/%-2e-terse-entity.gen.rst \
+	build/%-2e-tbl-entity.gen.rst build/%-2e-unicode-minus-entity.gen.rst \
+	build/%-2e-tbl-unicode-minus-entity.gen.rst \
+	build/%-2e-entitytree.gen.rst build/%-2e-terse-entitytree.gen.rst \
+	build/%-2e-tbl-entitytree.gen.rst build/%-2e-unicode-minus-entitytree.gen.rst \
+	build/%-2e-tbl-unicode-minus-entitytree.gen.rst
 
 print-%  : ; @echo $* = $($*)
