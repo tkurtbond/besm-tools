@@ -179,6 +179,10 @@ benchmark-fyaml: build/besm2-rst
 		done ); \
 	done
 
+# Render the benchmark-fyaml.rst write-up (yaml vs. slibfyaml egg
+# comparison) to PDF and HTML.
+benchmark-fyaml-report: build/benchmark-fyaml.ms.pdf build/benchmark-fyaml.html
+
 yamlerr: $(TEST_YAMLERROUTPUT)
 
 clean: testclean
@@ -264,6 +268,16 @@ build/%.html : build/%.gen.rst
 	pandoc -s -r rst -w html -o $@ $<
 
 build/%-terse.html : build/%-terse.gen.rst
+	pandoc -s -r rst -w html -o $@ $<
+
+# benchmark-fyaml.rst is a plain reST file at the top of the tree, not
+# one of the generated %.gen.rst files above, so it needs its own
+# explicit rules instead of the generic build/%.ms.pdf / build/%.html
+# pattern rules.
+build/benchmark-fyaml.ms.pdf : benchmark-fyaml.rst
+	pandoc -r rst -w ms --template=tkb $(MS_COLUMNS) -o $@ $<
+
+build/benchmark-fyaml.html : benchmark-fyaml.rst
 	pandoc -s -r rst -w html -o $@ $<
 
 
