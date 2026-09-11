@@ -12,7 +12,11 @@ BENCH_N=20
 
 # besm-totals is retired.
 INSTALL_PROGRAMS=besm4-rst besm2-rst
-OTHER_PROGRAMS=
+# besm2-rst-f is besm2-rst refactored to load YAML through slibfyaml's
+# handle/tree-based document API instead of materializing it up front
+# -- a comparison variant (see treefyaml/compare-treefyaml below), not
+# something to install alongside the two programs above.
+OTHER_PROGRAMS=besm2-rst-f
 PROGRAMS=$(INSTALL_PROGRAMS:%=build/%$(EXE)) $(OTHER_PROGRAMS:%=build/%$(EXE))
 
 TEST_DATA=$(wildcard test-data/*.yaml)
@@ -63,6 +67,20 @@ TEST_TERSEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -t
 TEST_TBLFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-fyaml.gen.rst,$(basename $(f) .yaml)))
 TEST_UNICODE_MINUS_FYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus-fyaml.gen.rst,$(basename $(f) .yaml)))
 TEST_UNICODE_MINUS_TBLFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus-fyaml.gen.rst,$(basename $(f) .yaml)))
+
+# The same five variants again, this time built by besm2-rst-f (loads
+# YAML via slibfyaml's handle/tree-based document API -- (slibfyaml
+# documents) + (slibfyaml nodes) -- rather than materializing it into
+# alists up front, unlike either besm2-rst's default yaml-egg path or
+# its own -f/--fyaml slibfyaml-scheme path above), with "-treefyaml"
+# appended to the file name, so its output can be diffed against the
+# plain yaml-egg output (see compare-treefyaml). 2E-only, since
+# besm2-rst-f only handles 2E test data, same as besm2-rst itself.
+TEST_TREEFYAML_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -treefyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_TERSETREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -terse-treefyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_TBLTREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-treefyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_TREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus-treefyaml.gen.rst,$(basename $(f) .yaml)))
+TEST_UNICODE_MINUS_TBLTREEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus-treefyaml.gen.rst,$(basename $(f) .yaml)))
 
 # This is the  list of statement-sized PDFs produced from reST tables, TBL tables, and terse mode.
 TEST_STMTOUTPUT=\
@@ -162,6 +180,36 @@ compare-fyaml: fyaml
 	done; \
 	exit $$status
 
+# Every besm2-rst-f variant (plain, terse, TBL, and the
+# Unicode-MINUS-SIGN variants), built with besm2-rst-f -- which loads
+# YAML through slibfyaml's handle/tree-based document API instead of
+# materializing it up front -- for comparison against the default
+# yaml-egg output built by "rst" and "unicode-minus" (see
+# compare-treefyaml).
+treefyaml: rst unicode-minus \
+	$(TEST_TREEFYAML_OUTPUT) $(TEST_TERSETREEFYAMLOUTPUT) $(TEST_TBLTREEFYAMLOUTPUT) \
+	$(TEST_UNICODE_MINUS_TREEFYAMLOUTPUT) $(TEST_UNICODE_MINUS_TBLTREEFYAMLOUTPUT)
+
+# Diff each yaml-egg reST file against its besm2-rst-f (handle/tree
+# API) counterpart and report which pairs match and which differ.
+compare-treefyaml: treefyaml
+	@status=0; \
+	for base in $(ENTITY_NAMES_2E); do \
+		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			yamlf=build/$$base$$suf; \
+			treefyamlf=build/$$base$${suf%.gen.rst}-treefyaml.gen.rst; \
+			if diff -q $$yamlf $$treefyamlf >/dev/null 2>&1; then \
+				echo "MATCH:   $$yamlf == $$treefyamlf"; \
+			else \
+				echo "DIFFER:  $$yamlf != $$treefyamlf"; \
+				diff -u $$yamlf $$treefyamlf; \
+				status=1; \
+			fi; \
+		done; \
+	done; \
+	exit $$status
+
 # Compare wall-clock/user/sys time for besm2-rst run BENCH_N times with
 # the yaml egg vs. the slibfyaml egg (-f/--fyaml), on each 2E test file.
 # Override BENCH_N=n on the command line to change the repetition count.
@@ -242,6 +290,27 @@ build/%-2e-unicode-minus-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
 build/%-2e-tbl-unicode-minus-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
 	build/besm2-rst -s -m -n -f $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, fyaml egg
 
+# The same variants again, but built with besm2-rst-f, which loads YAML
+# through slibfyaml's handle/tree-based document API ((slibfyaml
+# documents) + (slibfyaml nodes)) instead of materializing it up front
+# the way besm2-rst does (both its default yaml-egg path and its own
+# -f/--fyaml slibfyaml-scheme path above) -- for comparison against the
+# default output (see compare-treefyaml).
+build/%-2e-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -s $(BR2EOPTS) $< >$@ # handle/tree slibfyaml
+
+build/%-2e-terse-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -s -t $(BR2EOPTS) $< >$@ # terse, handle/tree slibfyaml
+
+build/%-2e-tbl-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -s -m $(BR2EOPTS) $< >$@ # ms tables, handle/tree slibfyaml
+
+build/%-2e-unicode-minus-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -s -n $(BR2EOPTS) $< >$@ # unicode minus sign, handle/tree slibfyaml
+
+build/%-2e-tbl-unicode-minus-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, handle/tree slibfyaml
+
 build/%.yamlerr : test-data/%.yaml
 	yamllint -f parsable  $< | tee $@
 
@@ -294,6 +363,9 @@ $(BINDIR)/% : build/%
 	build/%-2e-unicode-minus.gen.rst build/%-2e-tbl-unicode-minus.gen.rst \
 	build/%-2e-fyaml.gen.rst build/%-2e-terse-fyaml.gen.rst \
 	build/%-2e-tbl-fyaml.gen.rst build/%-2e-unicode-minus-fyaml.gen.rst \
-	build/%-2e-tbl-unicode-minus-fyaml.gen.rst
+	build/%-2e-tbl-unicode-minus-fyaml.gen.rst \
+	build/%-2e-treefyaml.gen.rst build/%-2e-terse-treefyaml.gen.rst \
+	build/%-2e-tbl-treefyaml.gen.rst build/%-2e-unicode-minus-treefyaml.gen.rst \
+	build/%-2e-tbl-unicode-minus-treefyaml.gen.rst
 
 print-%  : ; @echo $* = $($*)
