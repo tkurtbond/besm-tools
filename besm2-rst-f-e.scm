@@ -80,6 +80,7 @@
 (import (srfi 1))
 (import (srfi 152))
 (import (slibfyaml documents))
+(import (slibfyaml documents streams))
 (import (slibfyaml nodes))
 
 (import besm-entities)
@@ -217,29 +218,61 @@
                  stats-total attributes-total defects-total skills-total
                  (+ stats-total attributes-total defects-total))))
 
-(define (process-file)
-  ;; It is a file of possibly multiple entities. Every entity is decoded
-  ;; up front (map load-entity ...), inside with-document, before any of
-  ;; them are formatted -- see besm-entities.scm's header comment (note 2)
-  ;; for why that's a small, deliberate behavior change from
-  ;; besm2-rst-f.scm, and why it's safe to format after document-destroy!
-  ;; runs: by then every entity is a plain record, holding no node handles.
+;; Processes every "---"-separated document that stream yields, in
+;; order, threading entity-no across all of them so entity numbering is
+;; per *file* (or per stdin stream), not restarted at 1 for each
+;; document -- matches besm2_fmt's own Process_One/Process_Entities
+;; split (Ada, ~/Repos/RPG/Tools/besm2_fmt). Reading only the first
+;; document via document-parse-port, as this file used to, silently
+;; dropped every document after the first on multi-document input --
+;; see besm2_fmt's PERFORMANCE-COMPARISON.md, "The multi-document file
+;; exposes a real split within the besm2-rst family" for how that was
+;; found and confirmed (this file's own process-file, not a slibfyaml
+;; limitation: (slibfyaml documents streams) already provided this).
+;; Each document's entities are still decoded into plain <entity>
+;; records (load-entity) before that document is destroyed -- see
+;; besm-entities.scm's header comment (note 2) for why that's safe: the
+;; record holds no node handles afterward.
+(define (process-document-stream stream)
+  (let ((entity-no 0))
+    (let loop-docs ()
+      (when (document-stream-has-next? stream)
+        (let ((entities
+               (with-document (doc (document-stream-next! stream))
+                 (map load-entity (node-items (document-root doc))))))
+          (loop for entity in entities
+                do (set! entity-no (+ entity-no 1))
+                do (parameterize ((mecha? (entity-mecha? entity)))
+                     (*output-formatter* entity entity-no))))
+        (loop-docs)))))
+
+;; Shared by process-file/process-filename: reports a load/parse error
+;; the same way for both (instead of aborting the whole run) rather
+;; than duplicating the handler, then streams every document
+;; open-stream's thunk yields.
+(define (process-stream open-stream)
   (handle-exceptions exn
       (begin
         (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
         (print-error-message exn (current-error-port)))
-    (with-document (doc (document-parse-port (current-input-port)))
-      (let ((entities (map load-entity (node-items (document-root doc)))))
-        (loop for entity in entities
-              for entity-no from 1
-              do (parameterize ((mecha? (entity-mecha? entity)))
-                   (*output-formatter* entity entity-no)))))))
+    (with-document-stream (stream (open-stream))
+      (process-document-stream stream))))
+
+;; slibfyaml has no port-based streaming constructor (only
+;; document-stream-open-string/-open-file), so stdin's whole content is
+;; read into memory first -- the same tradeoff besm2_fmt's own Ada port
+;; makes for its stdin case (Read_All_Standard_Input + Open_String).
+(define (process-file)
+  (process-stream
+   (lambda () (document-stream-open-string (read-string #f (current-input-port))))))
 
 (define yaml-input-filename (make-parameter "(stdin)"))
 
+;; Streams directly from the named file -- no need to read it into
+;; memory first the way process-file's stdin case must.
 (define (process-filename filename)
   (parameterize ((yaml-input-filename filename))
-    (with-input-from-file filename process-file)))
+    (process-stream (lambda () (document-stream-open-file filename)))))
 
 (define (usage)
   (with-output-to-port (current-error-port)
