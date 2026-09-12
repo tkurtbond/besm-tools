@@ -6,11 +6,12 @@ endif
 BROPTS=
 BR2EOPTS=
 
-# Number of repetitions of besm2-rst/besm2-rst-f run by
-# benchmark-fyaml on each *small* test-data file, for each of the
-# three programs compared (yaml egg, slibfyaml egg -f/--fyaml, and
-# besm2-rst-f). Note: build/benchmark-fyaml.out only reruns when its
-# file prerequisites are newer than it (see below), so changing
+# Number of repetitions of besm2-rst/besm2-rst-f/besm2-rst-e/
+# besm2-rst-f-e run by benchmark-fyaml on each *small* test-data file,
+# for each of the five programs compared (yaml egg, slibfyaml egg
+# -f/--fyaml, besm2-rst-f, besm2-rst-e, besm2-rst-f-e). Note:
+# build/benchmark-fyaml.out only reruns when its file prerequisites
+# are newer than it (see below), so changing
 # BENCH_N/BENCHMARK_LARGE_RUNS alone, with no file touched, will not
 # by itself trigger a rerun -- force one with
 # "rm -f build/benchmark-fyaml.out && make benchmark-fyaml" or
@@ -330,27 +331,31 @@ compare-entitytree: entitytree
 # comment above for how to force a rerun otherwise).
 benchmark-fyaml: build/benchmark-fyaml.out
 
-# The raw timing log the two generated tables below are parsed from:
-# for each small test-data file and each synthetic large file, for
-# each of the three programs (yaml egg, slibfyaml egg -f/--fyaml, and
-# besm2-rst-f -- slibfyaml's handle/tree-based document API), one
-# line "RESULT category label program runs total-real-seconds", where
-# total-real-seconds is bash's own `time` builtin's real elapsed time
-# for the *whole* runs-repetition loop (not per run -- benchmark-
-# report.py divides by runs itself). category is "small" (label is
-# the test-data file's base name) or "large" (label is the synthetic
-# file's entity count).
+# The raw timing log the generated tables below are parsed from: for
+# each small test-data file and each synthetic large file, for each of
+# the five programs (yaml egg, slibfyaml egg -f/--fyaml, besm2-rst-f --
+# slibfyaml's handle/tree-based document API, besm2-rst-e -- besm2-rst
+# refactored onto besm-entities' shared record, and besm2-rst-f-e --
+# besm2-rst-f refactored the same way), one line "RESULT category
+# label program runs total-real-seconds", where total-real-seconds is
+# bash's own `time` builtin's real elapsed time for the *whole*
+# runs-repetition loop (not per run -- benchmark-report.py divides by
+# runs itself). category is "small" (label is the test-data file's
+# base name) or "large" (label is the synthetic file's entity count).
 build/benchmark-fyaml.out: build/besm2-rst build/besm2-rst-f \
+		build/besm2-rst-e build/besm2-rst-f-e \
 		$(TEST_DATA_2E) $(BENCHMARK_LARGE_FILES)
 	@TIMEFORMAT='%R'; \
 	: >$@; \
 	run_case() { \
 		category=$$1; label=$$2; file=$$3; runs=$$4; \
-		for prog in yaml fyaml treefyaml; do \
+		for prog in yaml fyaml treefyaml entity entitytree; do \
 			case $$prog in \
-				yaml)      cmd="build/besm2-rst -s $(BR2EOPTS) $$file" ;; \
-				fyaml)     cmd="build/besm2-rst -s -f $(BR2EOPTS) $$file" ;; \
-				treefyaml) cmd="build/besm2-rst-f -s $(BR2EOPTS) $$file" ;; \
+				yaml)       cmd="build/besm2-rst -s $(BR2EOPTS) $$file" ;; \
+				fyaml)      cmd="build/besm2-rst -s -f $(BR2EOPTS) $$file" ;; \
+				treefyaml)  cmd="build/besm2-rst-f -s $(BR2EOPTS) $$file" ;; \
+				entity)     cmd="build/besm2-rst-e -s $(BR2EOPTS) $$file" ;; \
+				entitytree) cmd="build/besm2-rst-f-e -s $(BR2EOPTS) $$file" ;; \
 			esac; \
 			echo "=== $$label ($$runs runs, $$prog) ==="; \
 			real=$$( { time ( for i in $$(seq 1 $$runs); do \
@@ -377,7 +382,8 @@ build/benchmark-fyaml-small.gen.rst build/benchmark-fyaml-large.gen.rst &: \
 		build/benchmark-fyaml-large.gen.rst
 
 # Render the benchmark-fyaml.rst write-up (yaml egg vs. slibfyaml egg
-# vs. besm2-rst-f comparison) to PDF and HTML. Depends transitively,
+# vs. besm2-rst-f vs. besm2-rst-e vs. besm2-rst-f-e comparison) to PDF
+# and HTML. Depends transitively,
 # through the two generated tables above, on build/benchmark-fyaml.out
 # and (through that) on both programs and every small/synthetic test
 # file -- so this rebuilds whenever a benchmark rerun would actually

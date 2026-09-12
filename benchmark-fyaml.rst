@@ -1,5 +1,5 @@
 ====================================================================
-Benchmark: yaml egg vs. slibfyaml egg vs. besm2-rst-f for besm2-rst
+Benchmark: YAML-loading and entity-record strategies for besm2-rst
 ====================================================================
 
 ``besm2-rst`` can load its YAML input using either the ``yaml`` egg
@@ -7,11 +7,37 @@ Benchmark: yaml egg vs. slibfyaml egg vs. besm2-rst-f for besm2-rst
 ``-f``/``--fyaml`` command line option. ``besm2-rst-f`` is a separate
 program -- a copy of ``besm2-rst`` refactored to walk slibfyaml's own
 handle/tree-based document API directly, rather than going through
-either of those two whole-document loaders. This note records a
-correctness and performance comparison between all three, produced
-with the ``fyaml``/``treefyaml``, ``compare-fyaml``/
-``compare-treefyaml``, and ``benchmark-fyaml`` targets added to
-``GNUmakefile``.
+either of those two whole-document loaders. ``besm2-rst-e`` and
+``besm2-rst-f-e`` are ``besm2-rst`` and ``besm2-rst-f`` again, each
+further refactored to decode every entity exactly once into a shared
+record (``besm-entities.scm``) instead of re-deriving the same fields
+separately in each of the four output backends. This note records a
+correctness and performance comparison between all five, produced with
+the ``fyaml``, ``treefyaml``, ``entity``, and ``entitytree`` targets,
+the ``compare-fyaml``, ``compare-treefyaml``, ``compare-entity``, and
+``compare-entitytree`` targets, and the ``benchmark-fyaml`` target,
+all added to ``GNUmakefile``.
+
+Throughout this note each program is referred to by a short code:
+
+``yaml``
+    ``besm2-rst``, the default: loads via the ``yaml`` egg.
+``fyaml``
+    ``besm2-rst -f``/``--fyaml``: loads via ``(slibfyaml scheme)``'s
+    eager whole-document decode.
+``tree``
+    ``besm2-rst-f``: walks slibfyaml's handle/tree API directly,
+    decoding only the scalars each output backend actually reads.
+``entity``
+    ``besm2-rst-e``: ``besm2-rst`` (still ``yaml``-egg-loaded by
+    default) refactored onto ``besm-entities``' shared record.
+``etree``
+    ``besm2-rst-f-e``: ``besm2-rst-f`` (still handle/tree-loaded)
+    refactored the same way.
+
+Comparing ``entity`` against ``yaml``, and ``etree`` against ``tree``,
+isolates the shared-record refactor's own cost from the choice of YAML
+loader, since each pair differs only in that one respect.
 
 ``(slibfyaml scheme)`` vs. other slibfyaml modules
 ===================================================
@@ -58,10 +84,13 @@ Correctness
 ``make compare-fyaml`` builds every ``besm2-rst`` output variant
 (plain, terse, TBL, and the Unicode-MINUS-SIGN variants) twice, once
 with each egg, and diffs the pairs; ``make compare-treefyaml`` does the
-same between ``besm2-rst``'s default output and ``besm2-rst-f``. All
-pairs, built from the two 2E files in ``test-data/``, are byte-for-byte
-identical in both comparisons. This also held for the larger synthetic
-files used below (1, 100, 500, and 1500 entities).
+same between ``besm2-rst``'s default output and ``besm2-rst-f``;
+``make compare-entity`` and ``make compare-entitytree`` do the same
+again for ``besm2-rst-e`` and ``besm2-rst-f-e`` against those same
+``yaml``-egg baselines. All pairs, built from the two 2E files in
+``test-data/``, are byte-for-byte identical in all four comparisons.
+This also held for the larger synthetic files used below (1, 100, 500,
+and 1500 entities).
 
 Small test-data files
 ======================
@@ -82,37 +111,45 @@ Synthetic large files
 To see whether the gap widens with input size, ``make benchmark-fyaml``
 also generates synthetic 2E files (``build/synthetic-N.yaml``, not part
 of the repository) by repeating the single entity in
-``enyon-boase-2e.yaml`` 1, 100, 500, and 1500 times, and runs each with
-plain ``besm2-rst -s`` / ``besm2-rst -s -f`` / ``besm2-rst-f -s``
-(fewer times as the file grows, so the whole sweep stays quick).
+``enyon-boase-2e.yaml`` 1, 100, 500, and 1500 times, and runs each of
+the five programs against them (fewer times as the file grows, so the
+whole sweep stays quick).
 
 .. include:: build/benchmark-fyaml-large.gen.rst
 
 Conclusion
 ==========
 
-The two tables above are generated (by ``benchmark-report.py``, from
+The tables above are generated (by ``benchmark-report.py``, from
 ``build/benchmark-fyaml.out``) each time the benchmark is rerun, so the
 specific figures will drift between runs and machines; read them for
 shape, not for the exact numbers quoted here at the time this section
 was last written by hand:
 
-- Output is identical across all three programs at every size tested.
-- On realistic (single-entity) files the three programs are close
-  enough to call a wash; ``besm2-rst-f`` in particular pays a fixed
-  per-process cost (loading two extra slibfyaml extensions,
-  ``(slibfyaml documents)`` and ``(slibfyaml nodes)``, plus explicit
-  document construction/teardown) that a single-entity run cannot
-  amortize away, so it can measure slightly *slower* than the other
-  two here even though it wins decisively once the input is large
+- Output is identical across all five programs at every size tested.
+- On realistic (single-entity) files all five are close enough to call
+  a wash; ``tree`` and ``etree`` in particular pay a fixed per-process
+  cost (loading two extra slibfyaml extensions, ``(slibfyaml
+  documents)`` and ``(slibfyaml nodes)``, plus explicit document
+  construction/teardown) that a single-entity run cannot amortize
+  away, so they can measure slightly *slower* than the ``yaml``-egg
+  loaders here even though they win decisively once the input is large
   enough to amortize that fixed cost.
 - Once the input is large enough for parsing/decoding cost to
-  dominate, both slibfyaml-backed programs are consistently faster
-  than the ``yaml`` egg, and ``besm2-rst-f``'s handle/tree traversal
-  -- decoding only the scalars this program actually reads, rather
+  dominate, both slibfyaml-backed loaders (``fyaml``, ``tree``,
+  ``etree``) are consistently faster than the ``yaml`` egg (``yaml``,
+  ``entity``), and the handle/tree traversal (``tree``, ``etree``) --
+  decoding only the scalars each output backend actually reads, rather
   than materializing the whole document into alists up front the way
-  ``(slibfyaml scheme)`` does -- is faster still. Both percentages
-  hold roughly steady as the input grows, since all three programs
-  scale linearly with the number of entities: this is a modest,
-  constant-factor win rather than one that grows disproportionately
-  at scale.
+  ``(slibfyaml scheme)`` does -- is faster still. These percentages
+  hold roughly steady as the input grows, since all five
+  programs scale linearly with the number of entities: this is a
+  modest, constant-factor win rather than one that grows
+  disproportionately at scale.
+- ``entity`` vs. ``yaml`` and ``etree`` vs. ``tree`` isolate the
+  shared-record refactor's own cost: both pairs track each other
+  closely at every size, so decoding each entity once into a
+  ``besm-entities`` record up front -- rather than re-deriving the
+  same fields separately in each of the four output backends -- is
+  effectively free; the refactor is a code-sharing win with no
+  measurable performance cost.

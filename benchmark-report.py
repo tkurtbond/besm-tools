@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Turn build/benchmark-fyaml.out (written by the GNUmakefile's
-build/benchmark-fyaml.out rule) into the two reST grid tables
+build/benchmark-fyaml.out rule) into the two reST include files
 benchmark-fyaml.rst pulls in via ".. include::": one for the small
 test-data files, one for the synthetic large files.
 
@@ -10,20 +10,30 @@ Each log line has the shape:
     RESULT <category> <label> <program> <runs> <total-real-seconds>
 where <category> is "small" or "large", <label> is a test-data file
 name (small) or a synthetic entity count (large), <program> is one of
-yaml/fyaml/treefyaml, <runs> is how many times that program was run in
-a loop, and <total-real-seconds> is bash's own `time` builtin's real
-elapsed time for the *whole* loop (not per run) -- this script divides
-by <runs> itself.
+yaml/fyaml/treefyaml/entity/entitytree, <runs> is how many times that
+program was run in a loop, and <total-real-seconds> is bash's own
+`time` builtin's real elapsed time for the *whole* loop (not per run)
+-- this script divides by <runs> itself.
+
+Tables are laid out with one row per program and one column per test
+file/entity count, rather than the other way around, precisely so that
+adding another program (as besm2-rst-e/besm2-rst-f-e did) only adds a
+row -- the table never gets wider. Programs are identified by the
+short codes in PROGRAM_CODE; benchmark-fyaml.rst spells out what each
+code means once, in prose, above the first table.
 """
 
 import sys
 
-PROGRAMS = ["yaml", "fyaml", "treefyaml"]
-PROGRAM_LABELS = {
-    "yaml": "yaml egg",
-    "fyaml": "slibfyaml egg (--fyaml)",
-    "treefyaml": "besm2-rst-f (handle/tree)",
+PROGRAM_ORDER = ["yaml", "fyaml", "treefyaml", "entity", "entitytree"]
+PROGRAM_CODE = {
+    "yaml": "yaml",
+    "fyaml": "fyaml",
+    "treefyaml": "tree",
+    "entity": "entity",
+    "entitytree": "etree",
 }
+BASELINE = "yaml"
 
 
 def parse_log(path):
@@ -75,55 +85,85 @@ GENERATED_NOTE = (
 )
 
 
-def small_table(entries):
-    headers = ["Test file", "Runs", "yaml egg\n(per run)",
-               "slibfyaml\n(--fyaml, per run)", "besm2-rst-f\n(per run)",
-               "--fyaml vs.\nyaml", "besm2-rst-f vs.\nyaml"]
-    # A grid table cell can't hold a literal newline in this renderer,
-    # so fold the two-line headers above back to one line each -- kept
-    # as \n above only to show the intended wrapping.
-    headers = [h.replace("\n", " ") for h in headers]
-    rows = []
-    for label, progs in entries.items():
-        runs_y, real_y = progs["yaml"]
-        runs_f, real_f = progs["fyaml"]
-        runs_t, real_t = progs["treefyaml"]
-        assert runs_y == runs_f == runs_t
-        ms_y = real_y / runs_y * 1000.0
-        ms_f = real_f / runs_f * 1000.0
-        ms_t = real_t / runs_t * 1000.0
-        rows.append([
-            label, str(runs_y),
-            "%.1f ms" % ms_y, "%.1f ms" % ms_f, "%.1f ms" % ms_t,
-            pct_vs(ms_y, ms_f), pct_vs(ms_y, ms_t),
-        ])
-    return render_grid_table(headers, rows)
+def per_run_runs_note(entries, labels):
+    runs = {entries[label][PROGRAM_ORDER[0]][0] for label in labels}
+    if len(runs) == 1:
+        return "%d runs per program per file" % runs.pop()
+    return ", ".join(
+        "%s: %d runs" % (label, entries[label][PROGRAM_ORDER[0]][0]) for label in labels
+    )
 
 
-def large_table(entries):
-    headers = ["Entities", "Runs", "yaml egg (s/run)", "--fyaml (s/run)",
-               "besm2-rst-f (s/run)", "yaml (ms/entity)",
-               "--fyaml (ms/entity)", "besm2-rst-f (ms/entity)",
-               "--fyaml vs. yaml", "besm2-rst-f vs. yaml"]
+def small_tables(entries):
+    labels = sorted(entries.keys())
+    out = ["Per-run time, in milliseconds (%s):\n\n" % per_run_runs_note(entries, labels)]
+    headers = ["Program"] + labels
     rows = []
-    for label in sorted(entries, key=int):
-        progs = entries[label]
-        entities = int(label)
-        runs_y, real_y = progs["yaml"]
-        runs_f, real_f = progs["fyaml"]
-        runs_t, real_t = progs["treefyaml"]
-        assert runs_y == runs_f == runs_t
-        s_y, s_f, s_t = real_y / runs_y, real_f / runs_f, real_t / runs_t
-        ms_ent_y = s_y * 1000.0 / entities
-        ms_ent_f = s_f * 1000.0 / entities
-        ms_ent_t = s_t * 1000.0 / entities
-        rows.append([
-            label, str(runs_y),
-            "%.3f" % s_y, "%.3f" % s_f, "%.3f" % s_t,
-            "%.2f" % ms_ent_y, "%.2f" % ms_ent_f, "%.2f" % ms_ent_t,
-            pct_vs(ms_ent_y, ms_ent_f), pct_vs(ms_ent_y, ms_ent_t),
-        ])
-    return render_grid_table(headers, rows)
+    for prog in PROGRAM_ORDER:
+        runs_ms = []
+        for label in labels:
+            runs, real = entries[label][prog]
+            runs_ms.append(real / runs * 1000.0)
+        rows.append([PROGRAM_CODE[prog]] + ["%.1f ms" % ms for ms in runs_ms])
+    out.append(render_grid_table(headers, rows))
+
+    out.append("\nRelative to ``yaml``, per-run time:\n\n")
+    rows = []
+    for prog in PROGRAM_ORDER:
+        if prog == BASELINE:
+            continue
+        cells = [PROGRAM_CODE[prog]]
+        for label in labels:
+            runs_b, real_b = entries[label][BASELINE]
+            runs_p, real_p = entries[label][prog]
+            ms_b, ms_p = real_b / runs_b * 1000.0, real_p / runs_p * 1000.0
+            cells.append(pct_vs(ms_b, ms_p))
+        rows.append(cells)
+    out.append(render_grid_table(headers, rows))
+    return "\n".join(out)
+
+
+def large_tables(entries):
+    labels = sorted(entries.keys(), key=int)
+    runs_by_label = {label: entries[label][PROGRAM_ORDER[0]][0] for label in labels}
+    runs_note = ", ".join("%s: %d runs" % (label, runs_by_label[label]) for label in labels)
+    out = ["Entity counts and repetitions used below (%s):\n\n" % runs_note]
+
+    headers = ["Program"] + labels
+    out.append("Per-run time, in seconds:\n\n")
+    rows = []
+    for prog in PROGRAM_ORDER:
+        cells = [PROGRAM_CODE[prog]]
+        for label in labels:
+            runs, real = entries[label][prog]
+            cells.append("%.3f" % (real / runs))
+        rows.append(cells)
+    out.append(render_grid_table(headers, rows))
+
+    out.append("\nPer-entity time, in milliseconds (removes the effect of process startup):\n\n")
+    ms_ent = {}
+    rows = []
+    for prog in PROGRAM_ORDER:
+        cells = [PROGRAM_CODE[prog]]
+        for label in labels:
+            runs, real = entries[label][prog]
+            v = real / runs * 1000.0 / int(label)
+            ms_ent.setdefault(label, {})[prog] = v
+            cells.append("%.2f" % v)
+        rows.append(cells)
+    out.append(render_grid_table(headers, rows))
+
+    out.append("\nRelative to ``yaml``, per-entity time:\n\n")
+    rows = []
+    for prog in PROGRAM_ORDER:
+        if prog == BASELINE:
+            continue
+        cells = [PROGRAM_CODE[prog]]
+        for label in labels:
+            cells.append(pct_vs(ms_ent[label][BASELINE], ms_ent[label][prog]))
+        rows.append(cells)
+    out.append(render_grid_table(headers, rows))
+    return "\n".join(out)
 
 
 def main():
@@ -131,10 +171,10 @@ def main():
     data = parse_log(log)
     with open(small_path, "w") as f:
         f.write(GENERATED_NOTE)
-        f.write(small_table(data["small"]))
+        f.write(small_tables(data["small"]))
     with open(large_path, "w") as f:
         f.write(GENERATED_NOTE)
-        f.write(large_table(data["large"]))
+        f.write(large_tables(data["large"]))
 
 
 if __name__ == "__main__":
