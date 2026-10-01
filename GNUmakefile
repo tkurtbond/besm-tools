@@ -78,7 +78,9 @@ TEST_UNICODE_MINUS_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsu
 # 2E-only, since besm4-rst.scm has no h-m-m output: the generated
 # h-m-m outlines (-H/--hmm), with items in their entity's node, and as
 # separate nodes (-S/--hmm-separate).  No PDF, since h-m-m isn't reST,
-# and no -n variant, since h-m-m writes no minus sign.
+# and no -n variant: defect points are written "N BP", so -n changes
+# only enhancement and limiter signs (of the 2E test data, only
+# synthetic-2e's), as in terse, which has no -n variant either.
 TEST_HMMOUTPUT=\
 	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix .gen.hmm,$(basename $(f) .yaml))) \
 	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -separate.gen.hmm,$(basename $(f) .yaml)))
@@ -98,6 +100,15 @@ TEST_UNICODE_MINUS_LETTEROUTPUT=\
 # (see compare-fyaml) and their speed compared (see benchmark-fyaml).
 # 2E-only, since besm2-rst only handles 2E test data.
 ENTITY_NAMES_2E=$(basename $(notdir $(TEST_DATA_2E)) .yaml)
+
+# The same, without the multi-document fixture, for compare-fyaml,
+# compare-treefyaml and compare-entitytree: besm2-rst with the yaml egg
+# (the default) reads only a file's last document, with -f only its
+# first, and besm2-rst-f and besm2-rst-f-e every document, so they
+# differ on it by design (README.rst, "Test data").  compare-entity
+# compares besm2-rst-e with besm2-rst, which read it the same way, so it
+# keeps it.
+ENTITY_NAMES_2E_ONE_DOC=$(filter-out composite-multi-doc-2e,$(ENTITY_NAMES_2E))
 
 TEST_FYAML_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -fyaml.gen.rst,$(basename $(f) .yaml)))
 TEST_TERSEFYAMLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -terse-fyaml.gen.rst,$(basename $(f) .yaml)))
@@ -227,7 +238,7 @@ fyaml: rst unicode-minus \
 # and report which pairs match and which differ.
 compare-fyaml: fyaml
 	@status=0; \
-	for base in $(ENTITY_NAMES_2E); do \
+	for base in $(ENTITY_NAMES_2E_ONE_DOC); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
 			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
 			yamlf=build/$$base$$suf; \
@@ -257,7 +268,7 @@ treefyaml: rst unicode-minus \
 # API) counterpart and report which pairs match and which differ.
 compare-treefyaml: treefyaml
 	@status=0; \
-	for base in $(ENTITY_NAMES_2E); do \
+	for base in $(ENTITY_NAMES_2E_ONE_DOC); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
 			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
 			yamlf=build/$$base$$suf; \
@@ -318,7 +329,7 @@ entitytree: rst unicode-minus \
 # which differ.
 compare-entitytree: entitytree
 	@status=0; \
-	for base in $(ENTITY_NAMES_2E); do \
+	for base in $(ENTITY_NAMES_2E_ONE_DOC); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
 			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
 			yamlf=build/$$base$$suf; \
