@@ -716,7 +716,7 @@
   (dbg (dfmt "process-defect-terse: " (defect-name defect) nl))
   (let ((details (defect-details defect)))
     (show #t (emphasizing (defect-name defect)) " ("
-          (if details (string-append details ".  ") "")
+          (if details (string-append details ". ") "")
           (label-points (defect-points defect)) ")")))
 
 (define (process-skill-terse skill)
@@ -726,7 +726,7 @@
                           (if (*em-dash*) " — " " ")
                           (if (*level*) "Level " "") (skill-level skill)) " ("
           (if specialisations
-              (string-append (string-join specialisations ", ") ".  ")
+              (string-append (string-join specialisations ", ") ". ")
               "")
          (displayed (skill-points skill)) " SP)")))
 
@@ -759,7 +759,7 @@
   (when (entity-stats entity)
     (show #t (bold "Statistics"))
     (when (*show-subtotals*)
-      (show #t " (" (label-points (entity-stats-total entity)) ") "))
+      (show #t " (" (label-points (entity-stats-total entity)) ")"))
     (show #t " — " nl)
     (loop for stat in (entity-stats entity)
           for i from 1
@@ -845,7 +845,7 @@
   (dbg (dfmt "process-defect-hmm: " (defect-name defect) nl))
   (let ((details (defect-details defect)))
     (show #t (emphasizing (defect-name defect)) " ("
-          (if details (all-one-line (string-append details ".  ")) "")
+          (if details (all-one-line (string-append details ". ")) "")
           (label-points (defect-points defect)) ")")))
 
 (define (process-skill-hmm skill)
@@ -856,7 +856,7 @@
                           (if (*level*) "Level " "")
                           (skill-level skill)) " ("
                           (if specialisations
-                              (string-append (string-join specialisations ", ") ".  ")
+                              (string-append (string-join specialisations ", ") ". ")
                               "")
                           (displayed (skill-points skill)) " SP)")))
 
@@ -879,7 +879,7 @@
 
     (when (and (entity-description entity) (not (*omit-entity-description*)))
       (depth+
-        (show #t (indent) (all-one-line (entity-description entity)) " " nl)))
+        (show #t (indent) (all-one-line (entity-description entity)) nl)))
 
     (when (entity-size entity)
       (depth+
@@ -889,7 +889,7 @@
       (depth+
         (show #t (indent) (bold "Statistics"))
         (when (*show-subtotals*)
-          (show #t " (" (label-points (entity-stats-total entity)) ") "))
+          (show #t " (" (label-points (entity-stats-total entity)) ")"))
         (show #t nl)
         (depth+
           (show #t (indent))

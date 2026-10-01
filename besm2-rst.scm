@@ -559,7 +559,7 @@
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
     (show #t (emphasizing name) " ("
-          (if details (string-append details ".  ") "")
+          (if details (string-append details ". ") "")
           (label-points points) ")")))
 
 (define (process-skill-terse skill)
@@ -573,7 +573,7 @@
                           (if *em-dash* " — " " ")
                           (if *level* "Level " "")level) " ("
           (if specialisations
-              (string-append (string-join specialisations ", ") ".  ")
+              (string-append (string-join specialisations ", ") ". ")
               "")
          (displayed points) " SP)")))
 
@@ -623,7 +623,7 @@
     (when stats
       (show #t (bold "Statistics"))
       (when *show-subtotals*
-        (show #t " (" (label-points stats-total) ") "))
+        (show #t " (" (label-points stats-total) ")"))
       (show #t " — " nl)
       (loop for stat in stats
             for i from 1
@@ -736,7 +736,7 @@
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
     (show #t (emphasizing name) " ("
-          (if details (all-one-line (string-append details ".  ")) "")
+          (if details (all-one-line (string-append details ". ")) "")
           (label-points points) ")")))
 
 (define (process-skill-hmm skill)
@@ -751,7 +751,7 @@
                           (if *level* "Level " "")
                           level) " ("
                           (if specialisations
-                              (string-append (string-join specialisations ", ") ".  ")
+                              (string-append (string-join specialisations ", ") ". ")
                               "")
                           (displayed points) " SP)")))
 
@@ -792,7 +792,7 @@
 
       (when (and description (not *omit-entity-description*))
         (depth+
-          (show #t (indent) (all-one-line description) " " nl)))
+          (show #t (indent) (all-one-line description) nl)))
     
       (when size
         (depth+ 
@@ -802,7 +802,7 @@
         (depth+
           (show #t (indent) (bold "Statistics"))
           (when *show-subtotals*
-            (show #t " (" (label-points stats-total) ") "))
+            (show #t " (" (label-points stats-total) ")"))
           (show #t nl)
           (depth+
             (show #t (indent))
