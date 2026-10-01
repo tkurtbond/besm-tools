@@ -1024,7 +1024,8 @@
   (dbg (dfmt "process-entity-raw-ms: " (or (entity-name entity) "(unnamed)") nl))
   ;; It might be a template, an item, or a full character.
   (let ((paragraph-seen #f)
-        (first-section-seen #f))
+        (first-section-seen #f)
+        (last-section-derived #f))    ; Its format has only two columns.
 
     (when (entity-name entity)
       (let ((underline (make-string (string-length (entity-name entity))
@@ -1072,6 +1073,7 @@
     (when (entity-derived entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #t)
       (show #t *raw-prefix* "c l sx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1083,6 +1085,7 @@
     (when (entity-attributes entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #f)
       (show #t *raw-prefix* "c c lx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1099,6 +1102,7 @@
     (when (entity-defects entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #f)
       (show #t *raw-prefix* "c c lx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1116,6 +1120,7 @@
     (when (entity-skills entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #f)
       (show #t *raw-prefix* "c c lx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1127,7 +1132,14 @@
             (tbold "SKILL POINTS TOTAL") nl)
       (show #t *raw-prefix* nl))
 
-    ;; Output total.
+    ;; Output total.  Its row has three columns, so it needs a format
+    ;; of its own when there was no section, or the last was derived.
+    (cond ((not first-section-seen)
+           (show #t *raw-prefix* "c c lx ." nl)
+           (show #t *raw-prefix* "=" nl))
+          (last-section-derived
+           (show #t *raw-prefix* ".T&" nl)
+           (show #t *raw-prefix* "c c lx ." nl)))
     (show #t *raw-prefix* "#" (tbold (points->string (entity-entity-total entity))) "#"
           (tbold "TOTAL") nl)
     (show #t *raw-prefix* "=" nl)

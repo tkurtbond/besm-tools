@@ -969,6 +969,7 @@
   ;; It might be a template, an item, or a full character.
   (let ((paragraph-seen #f)
         (first-section-seen #f)
+        (last-section-derived #f)    ; Its format has only two columns.
         (stats-total 0)
         (attributes-total 0)
         (defects-total 0)
@@ -1022,6 +1023,7 @@
     (when-in-alist (derived "derived" entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #t)
       (show #t *raw-prefix* "c l sx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1033,6 +1035,7 @@
     (when-in-alist (attributes "attributes" entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #f)
       (show #t *raw-prefix* "c c lx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1050,6 +1053,7 @@
     (when-in-alist (defects "defects" entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #f)
       (show #t *raw-prefix* "c c lx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1068,6 +1072,7 @@
     (when-in-alist (skills "skills" entity)
       (when first-section-seen
         (show #t *raw-prefix* ".T&" nl))
+      (set! last-section-derived #f)
       (show #t *raw-prefix* "c c lx ." nl)
       (unless first-section-seen
         (set! first-section-seen #t)
@@ -1081,7 +1086,14 @@
             (tbold "SKILL POINTS TOTAL") nl)
       (show #t *raw-prefix* nl))
 
-    ;; Output total.
+    ;; Output total.  Its row has three columns, so it needs a format
+    ;; of its own when there was no section, or the last was derived.
+    (cond ((not first-section-seen)
+           (show #t *raw-prefix* "c c lx ." nl)
+           (show #t *raw-prefix* "=" nl))
+          (last-section-derived
+           (show #t *raw-prefix* ".T&" nl)
+           (show #t *raw-prefix* "c c lx ." nl)))
     (set! entity-total (+ stats-total attributes-total defects-total))
     (show #t *raw-prefix* "#" (tbold (points->string entity-total)) "#"
           (tbold "TOTAL") nl)
