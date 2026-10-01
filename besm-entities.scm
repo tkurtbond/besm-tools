@@ -470,6 +470,12 @@
                   [(? string? s)
                    (show #f (displayed s) " "
                          (if (eq? type 'enhancement) (string-append (minus-glyph) "1") "+1"))]
+                  ;; The sign comes from the type, so counts-as is a
+                  ;; number of levels: a negative one would be written
+                  ;; "+-1" or "--1".
+                  [((? string?) (? (lambda (n) (and (number? n) (<= n 0)))) . _)
+                   (error 'format-customizers
+                          "counts-as must be positive" item)]
                   [((? string? name) (? number? counts-as))
                    (show #f (displayed name) " "
                          (if (eq? type 'enhancement) (minus-glyph) "+")
