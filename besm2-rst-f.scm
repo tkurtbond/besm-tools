@@ -549,9 +549,10 @@
         (loop for skill in (sort skills name-ci<?)
               sum (process-skill skill)
               do (sep3)))
-      (row3 "" (text (hbolding (number->string skills-total)))
-            (text (hbolding "SKILL POINTS TOTAL")))
-      (sep3)
+      (when *show-subtotals*
+        (row3 "" (text (hbolding (number->string skills-total)))
+              (text (hbolding "SKILL POINTS TOTAL")))
+        (sep3))
       (cond (*one-table* (empty))
             (else (show #t nl))))
 
@@ -1143,8 +1144,9 @@
       (set! skills-total
         (loop for skill in (sort skills name-ci<?)
               sum (process-skill-raw-ms skill)))
-      (show #t *raw-prefix* "#" (tbold (number->string skills-total)) "#"
-            (tbold "SKILL POINTS TOTAL") nl)
+      (when *show-subtotals*
+        (show #t *raw-prefix* "#" (tbold (number->string skills-total)) "#"
+              (tbold "SKILL POINTS TOTAL") nl))
       (show #t *raw-prefix* nl))
 
     ;; Output total.  Its row has three columns, so it needs a format
@@ -1377,7 +1379,7 @@ as that looks better.")))
          (set! *page-after-description* #t))
         (args:make-option
          (s subtotals) #:none
-         "Show subtotals for stats, attributes, and defects."
+         "Show subtotals for stats, attributes, defects, and skills."
          (set! *show-subtotals* #t))
         (args:make-option
          (t terse) #:none "Use terse output."

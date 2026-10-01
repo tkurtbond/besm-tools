@@ -364,7 +364,7 @@ as that looks better.")))
          (*page-after-description* #t))
         (args:make-option
          (s subtotals) #:none
-         "Show subtotals for stats, attributes, and defects."
+         "Show subtotals for stats, attributes, defects, and skills."
          (*show-subtotals* #t))
         (args:make-option
          (t terse) #:none "Use terse output."

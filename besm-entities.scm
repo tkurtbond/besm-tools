@@ -669,9 +669,10 @@
           (text (hbolding "SKILL")))
     (headsep3)
     (loop for skill in (entity-skills entity) do (process-skill skill) do (sep3))
-    (row3 "" (text (hbolding (number->string (entity-skills-total entity))))
-          (text (hbolding "SKILL POINTS TOTAL")))
-    (sep3)
+    (when (*show-subtotals*)
+      (row3 "" (text (hbolding (number->string (entity-skills-total entity))))
+            (text (hbolding "SKILL POINTS TOTAL")))
+      (sep3))
     (cond ((*one-table*) (empty))
           (else (show #t nl))))
 
@@ -1128,8 +1129,9 @@
       (show #t *raw-prefix* (tbold "LEVEL") "#" (tbold "POINTS") "#"
             (tbold "SKILL") nl)
       (loop for skill in (entity-skills entity) do (process-skill-raw-ms skill))
-      (show #t *raw-prefix* "#" (tbold (number->string (entity-skills-total entity))) "#"
-            (tbold "SKILL POINTS TOTAL") nl)
+      (when (*show-subtotals*)
+        (show #t *raw-prefix* "#" (tbold (number->string (entity-skills-total entity))) "#"
+              (tbold "SKILL POINTS TOTAL") nl))
       (show #t *raw-prefix* nl))
 
     ;; Output total.  Its row has three columns, so it needs a format
