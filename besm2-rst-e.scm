@@ -107,7 +107,10 @@
   (let ((found (assoc item alist)))
     (if found
         (cdr found)
-        (die 2 "Unable to find " (written item) " in " (written alist)))))
+        ;; An error, not die: process-entities reports it and goes on
+        ;; with the next entity.
+        (error (show #f "Unable to find " (written item) " in "
+                     (written alist))))))
 
 (define (may-exist item alist)
   (let ((result (assoc item alist)))
@@ -192,29 +195,88 @@
                  stats-total attributes-total defects-total skills-total
                  (+ stats-total attributes-total defects-total))))
 
+;; The yaml egg reads a mapping as an alist and a sequence as a list, so
+;; a top level that is a mapping is a list whose items' cars are its
+;; keys, where a list of entities is a list of alists.
+(define (entity-list? x)
+  (and (list? x)
+       (not (and (pair? x) (pair? (car x)) (string? (caar x))))))
+
+;; Each entity is written to a string first, so one with an error writes
+;; nothing; it is reported and the next entity is processed.  entity-no
+;; counts only the entities written; returns the new count.
+(define (process-entities entities entity-no)
+  (loop for entity in entities
+        do (let ((output
+                  (handle-exceptions exn
+                      (begin (report-error exn) #f)
+                    (with-output-to-string
+                      (lambda ()
+                        (process-one-entity entity (+ entity-no 1)))))))
+             (when output
+               (set! entity-no (+ entity-no 1))
+               (show #t output))))
+  entity-no)
+
+;; Decodes one entity, then formats it -- see besm-entities.scm's header
+;; comment (note 2).
+(define (process-one-entity entity entity-no)
+  (let ((entity (load-entity entity)))
+    (parameterize ((mecha? (entity-mecha? entity)))
+      (*output-formatter* entity entity-no))))
+
 (define (process-file)
-  ;; It is a file of possibly multiple entities. Every entity is decoded
-  ;; up front (map load-entity ...) before any of them are formatted --
-  ;; see besm-entities.scm's header comment (note 2) for why that's a
-  ;; small, deliberate behavior change from besm2-rst.scm.
-  (handle-exceptions exn
-      (begin
-        (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
-        (print-error-message exn (current-error-port)))
-    (let ((entities (map load-entity (load-from-yaml (current-input-port)))))
-      (loop for entity in entities
-            for entity-no from 1
-            do (parameterize ((mecha? (entity-mecha? entity)))
-                 (*output-formatter* entity entity-no))))))
+  ;; It is a file of possibly multiple entities.  An error loading the
+  ;; YAML ends the file.
+  (let ((entities (handle-exceptions exn
+                      (begin (report-error exn) '())
+                    (load-from-yaml (current-input-port)))))
+    (if (entity-list? entities)
+        (process-entities entities 0)
+        (report-not-sequence))))
 
 (define yaml-input-filename (make-parameter "(stdin)"))
 
+;; Set when an error in the input has been reported; main then exits 1.
+(define *errors-reported* #f)
+
+;; Reports exn, an error in the current input file, on one line:
+;; print-error-message starts with a newline.
+(define (report-error exn)
+  (set! *errors-reported* #t)
+  (flush-output (current-output-port))
+  (show (current-error-port)
+        (string-trim-both
+         (call-with-output-string
+          (lambda (port)
+            (print-error-message exn port
+                                 (show #f (program-name) ": error processing "
+                                       (yaml-input-filename))))))
+        nl))
+
+;; Reports that the current input's top level isn't a sequence.
+(define (report-not-sequence)
+  (report-error
+   (make-property-condition
+    'exn 'message
+    (show #f "expected a top-level YAML sequence of entities in "
+          (yaml-input-filename))
+    'arguments '())))
+
+;; A file that can't be opened is reported, and the run goes on.
 (define (process-filename filename)
   (parameterize ((yaml-input-filename filename))
-    (with-input-from-file filename process-file)))
+    (let ((port (handle-exceptions exn
+                    (begin (report-error exn) #f)
+                  (open-input-file filename))))
+      (when port
+        (with-input-from-port port process-file)
+        (close-input-port port)))))
 
-(define (usage)
-  (with-output-to-port (current-error-port)
+;; To standard output with status 0 for -h/--help; to standard error
+;; with status 2 for a command-line mistake.
+(define (usage #!optional (port (current-error-port)) (status 2))
+  (with-output-to-port port
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
@@ -222,10 +284,8 @@
       (newline)
       (print
        "Note: use -1 (or --one) if you are generating this for HTML output,
-as that looks better.")
-      (newline)
-      (show #t "Current argv: " (written (argv)) nl)))
-  (exit 1))
+as that looks better.")))
+  (exit status))
 
 (define *hmm-output* #f)
 (define *hmm-root* #f)                  ; Don't output root if #f.
@@ -275,7 +335,7 @@ as that looks better.")
          (*hmm-separate* #t))
         (args:make-option
          (h help) #:none "Display this text."
-         (usage))
+         (usage (current-output-port) 0))
         (args:make-option
          (i italics) #:none (show #f
                                   "Turn on italicizing of names and levels of
@@ -325,8 +385,15 @@ as that looks better.")
          (*table-width* (string->number arg)))))
 
 (define (main)
-  (receive (options operands) (args:parse (command-line-arguments)
-                                          +command-line-options+)
+  (receive (options operands)
+      (args:parse (command-line-arguments) +command-line-options+
+                  ;; Not the args egg's default, which calls -h's
+                  ;; procedure.
+                  #:unrecognized-proc
+                  (lambda (opt name arg options operands)
+                    (show (current-error-port) (program-name)
+                          ": unrecognized option: " name nl)
+                    (usage)))
     (define (process-operands)
       (if  (zero? (length operands))
            (with-input-from-port (current-input-port) process-file)
@@ -335,12 +402,17 @@ as that looks better.")
     ;; When normally outputing reST bolding is two asterisks on each side.
     (*num-width* (+ (*num-width*) 4))
 
-    (when (and *hmm-output* *hmm-root*)
-      (show #t (indent) *hmm-root* nl))
+    (define (write-output)
+      ;; The root line goes with the rest, into the -o file if any.
+      (when (and *hmm-output* *hmm-root*)
+        (show #t (indent) *hmm-root* nl))
+      (process-operands))
 
     (if *output-file*
-        (with-output-to-file *output-file* process-operands)
-        (process-operands))))
+        (with-output-to-file *output-file* write-output)
+        (write-output))
+    (when *errors-reported*
+      (exit 1))))
 
 ;; Only invoke main if this has been compiled.  That way we can load the
 ;; module into csi and debug it.

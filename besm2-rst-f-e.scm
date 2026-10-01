@@ -229,22 +229,41 @@
 ;; exposes a real split within the besm2-rst family" for how that was
 ;; found and confirmed (this file's own process-file, not a slibfyaml
 ;; limitation: (slibfyaml documents streams) already provided this).
-;; Each document's entities are still decoded into plain <entity>
-;; records (load-entity) before that document is destroyed -- see
-;; besm-entities.scm's header comment (note 2) for why that's safe: the
-;; record holds no node handles afterward.
+;; Each entity is decoded into a plain <entity> record (load-entity) and
+;; formatted before its document is destroyed -- see besm-entities.scm's
+;; header comment (note 2).
 (define (process-document-stream stream)
   (let ((entity-no 0))
     (let loop-docs ()
       (when (document-stream-has-next? stream)
-        (let ((entities
-               (with-document (doc (document-stream-next! stream))
-                 (map load-entity (node-items (document-root doc))))))
-          (loop for entity in entities
-                do (set! entity-no (+ entity-no 1))
-                do (parameterize ((mecha? (entity-mecha? entity)))
-                     (*output-formatter* entity entity-no))))
+        (with-document (doc (document-stream-next! stream))
+          ;; A top level that isn't a sequence ends its document.
+          (let ((root (document-root doc)))
+            (if (and (node-valid? root) (node-sequence? root))
+                (set! entity-no (process-entities (node-items root) entity-no))
+                (report-not-sequence))))
         (loop-docs)))))
+
+;; Each entity is written to a string first, so one with an error writes
+;; nothing; it is reported and the next entity is processed.  entity-no
+;; counts only the entities written; returns the new count.
+(define (process-entities entities entity-no)
+  (loop for entity in entities
+        do (let ((output
+                  (handle-exceptions exn
+                      (begin (report-error exn) #f)
+                    (with-output-to-string
+                      (lambda ()
+                        (process-one-entity entity (+ entity-no 1)))))))
+             (when output
+               (set! entity-no (+ entity-no 1))
+               (show #t output))))
+  entity-no)
+
+(define (process-one-entity entity entity-no)
+  (let ((entity (load-entity entity)))
+    (parameterize ((mecha? (entity-mecha? entity)))
+      (*output-formatter* entity entity-no))))
 
 ;; Shared by process-file/process-filename: reports a load/parse error
 ;; the same way for both (instead of aborting the whole run) rather
@@ -252,9 +271,7 @@
 ;; open-stream's thunk yields.
 (define (process-stream open-stream)
   (handle-exceptions exn
-      (begin
-        (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
-        (print-error-message exn (current-error-port)))
+      (report-error exn)
     (with-document-stream (stream (open-stream))
       (process-document-stream stream))))
 
@@ -268,14 +285,42 @@
 
 (define yaml-input-filename (make-parameter "(stdin)"))
 
+;; Set when an error in the input has been reported; main then exits 1.
+(define *errors-reported* #f)
+
+;; Reports exn, an error in the current input file, on one line:
+;; print-error-message starts with a newline.
+(define (report-error exn)
+  (set! *errors-reported* #t)
+  (flush-output (current-output-port))
+  (show (current-error-port)
+        (string-trim-both
+         (call-with-output-string
+          (lambda (port)
+            (print-error-message exn port
+                                 (show #f (program-name) ": error processing "
+                                       (yaml-input-filename))))))
+        nl))
+
+;; Reports that the current input's top level isn't a sequence.
+(define (report-not-sequence)
+  (report-error
+   (make-property-condition
+    'exn 'message
+    (show #f "expected a top-level YAML sequence of entities in "
+          (yaml-input-filename))
+    'arguments '())))
+
 ;; Streams directly from the named file -- no need to read it into
 ;; memory first the way process-file's stdin case must.
 (define (process-filename filename)
   (parameterize ((yaml-input-filename filename))
     (process-stream (lambda () (document-stream-open-file filename)))))
 
-(define (usage)
-  (with-output-to-port (current-error-port)
+;; To standard output with status 0 for -h/--help; to standard error
+;; with status 2 for a command-line mistake.
+(define (usage #!optional (port (current-error-port)) (status 2))
+  (with-output-to-port port
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
@@ -283,10 +328,8 @@
       (newline)
       (print
        "Note: use -1 (or --one) if you are generating this for HTML output,
-as that looks better.")
-      (newline)
-      (show #t "Current argv: " (written (argv)) nl)))
-  (exit 1))
+as that looks better.")))
+  (exit status))
 
 (define *hmm-output* #f)
 (define *hmm-root* #f)                  ; Don't output root if #f.
@@ -333,7 +376,7 @@ as that looks better.")
          (*hmm-separate* #t))
         (args:make-option
          (h help) #:none "Display this text."
-         (usage))
+         (usage (current-output-port) 0))
         (args:make-option
          (i italics) #:none (show #f
                                   "Turn on italicizing of names and levels of
@@ -383,8 +426,15 @@ as that looks better.")
          (*table-width* (string->number arg)))))
 
 (define (main)
-  (receive (options operands) (args:parse (command-line-arguments)
-                                          +command-line-options+)
+  (receive (options operands)
+      (args:parse (command-line-arguments) +command-line-options+
+                  ;; Not the args egg's default, which calls -h's
+                  ;; procedure.
+                  #:unrecognized-proc
+                  (lambda (opt name arg options operands)
+                    (show (current-error-port) (program-name)
+                          ": unrecognized option: " name nl)
+                    (usage)))
     (define (process-operands)
       (if  (zero? (length operands))
            (with-input-from-port (current-input-port) process-file)
@@ -393,12 +443,17 @@ as that looks better.")
     ;; When normally outputing reST bolding is two asterisks on each side.
     (*num-width* (+ (*num-width*) 4))
 
-    (when (and *hmm-output* *hmm-root*)
-      (show #t (indent) *hmm-root* nl))
+    (define (write-output)
+      ;; The root line goes with the rest, into the -o file if any.
+      (when (and *hmm-output* *hmm-root*)
+        (show #t (indent) *hmm-root* nl))
+      (process-operands))
 
     (if *output-file*
-        (with-output-to-file *output-file* process-operands)
-        (process-operands))))
+        (with-output-to-file *output-file* write-output)
+        (write-output))
+    (when *errors-reported*
+      (exit 1))))
 
 ;; Only invoke main if this has been compiled.  That way we can load the
 ;; module into csi and debug it.

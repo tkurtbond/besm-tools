@@ -478,7 +478,8 @@
 
     (unless *omit-entity-description*
       (when-string-in-node (description "description" entity)
-        (show #t description nl nl)))
+        (show #t description nl nl)
+        (page-after-description)))
 
     (when-string-in-node (size "size" entity)
       (show #t (bold "Size:") " " size nl nl))
@@ -563,6 +564,12 @@
     (show #t nl)
     ))
 
+
+;; -p/--page: a page break after the entity's description, which shows
+;; only when the reST goes on to ms.  Every format but h-m-m.
+(define (page-after-description)
+  (when *page-after-description*
+    (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
 
 (define (total-points items)
   (loop for item in items sum (node-integer-value item "points")))
@@ -669,8 +676,7 @@
 
     (when (and description (not *omit-entity-description*))
       (show #t description nl nl)
-      (when *page-after-description*
-        (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
+      (page-after-description))
 
     (when size
       (show #t (bold "Size:") " " size nl nl))
@@ -1045,7 +1051,8 @@
     (unless *omit-entity-description*
       (when-string-in-node (description "description" entity)
         (set! paragraph-seen #t)
-        (show #t description nl nl)))
+        (show #t description nl nl)
+        (page-after-description)))
 
     (when-string-in-node (size "size" entity)
       (set! paragraph-seen #t)
@@ -1137,13 +1144,37 @@
 
     ;; Output total.
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (when (> entity-total 0)
-      (show #t *raw-prefix* "#" (tbold (points->string entity-total)) "#"
-            (tbold "TOTAL") nl))
+    (show #t *raw-prefix* "#" (tbold (points->string entity-total)) "#"
+          (tbold "TOTAL") nl)
     (show #t *raw-prefix* "=" nl)
-    (show #t *raw-prefix* ".TE" nl)
+    ;; The blank line ends the raw block before the next entity's name.
+    (show #t *raw-prefix* ".TE" nl nl)
     ))
 
+
+;; Each entity is written to a string first, so one with an error writes
+;; nothing; it is reported and the next entity is processed.  entity-no
+;; counts only the entities written; returns the new count.
+(define (process-entities entities entity-no)
+  (loop for entity in entities
+        do (let ((output
+                  (handle-exceptions exn
+                      (begin (report-error exn) #f)
+                    (with-output-to-string
+                      (lambda ()
+                        (process-one-entity entity (+ entity-no 1)))))))
+             (when output
+               (set! entity-no (+ entity-no 1))
+               (show #t output))))
+  entity-no)
+
+(define (process-one-entity entity entity-no)
+  ;; node-boolean-value's own optional (map, key, default) form already
+  ;; returns the actual #t/#f/absent value -- "mecha: false" turns mecha
+  ;; mode OFF, same distinction may-exist used to preserve against a
+  ;; bare assoc/node-has-key?.
+  (parameterize ((mecha? (node-boolean-value entity "mecha" #f)))
+    (*output-formatter* entity entity-no)))
 
 ;; Processes every "---"-separated document that stream yields, in
 ;; order, threading entity-no across all of them so entity numbering is
@@ -1161,16 +1192,11 @@
     (let loop-docs ()
       (when (document-stream-has-next? stream)
         (with-document (doc (document-stream-next! stream))
-          (let ((entities (node-items (document-root doc))))
-            (loop for entity in entities
-                  do (set! entity-no (+ entity-no 1))
-                  ;; node-boolean-value's own optional (map, key, default)
-                  ;; form already returns the actual #t/#f/absent value --
-                  ;; "mecha: false" turns mecha mode OFF, same distinction
-                  ;; may-exist used to preserve against a bare assoc/
-                  ;; node-has-key?.
-                  do (parameterize ((mecha? (node-boolean-value entity "mecha" #f)))
-                       (*output-formatter* entity entity-no)))))
+          ;; A top level that isn't a sequence ends its document.
+          (let ((root (document-root doc)))
+            (if (and (node-valid? root) (node-sequence? root))
+                (set! entity-no (process-entities (node-items root) entity-no))
+                (report-not-sequence))))
         (loop-docs)))))
 
 ;; Shared by process-file/process-filename: reports a load/parse error
@@ -1179,9 +1205,7 @@
 ;; open-stream's thunk yields.
 (define (process-stream open-stream)
   (handle-exceptions exn
-      (begin
-        (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
-        (print-error-message exn (current-error-port)))
+      (report-error exn)
     (with-document-stream (stream (open-stream))
       (process-document-stream stream))))
 
@@ -1195,14 +1219,42 @@
 
 (define yaml-input-filename (make-parameter "(stdin)"))
 
+;; Set when an error in the input has been reported; main then exits 1.
+(define *errors-reported* #f)
+
+;; Reports exn, an error in the current input file, on one line:
+;; print-error-message starts with a newline.
+(define (report-error exn)
+  (set! *errors-reported* #t)
+  (flush-output (current-output-port))
+  (show (current-error-port)
+        (string-trim-both
+         (call-with-output-string
+          (lambda (port)
+            (print-error-message exn port
+                                 (show #f (program-name) ": error processing "
+                                       (yaml-input-filename))))))
+        nl))
+
+;; Reports that the current input's top level isn't a sequence.
+(define (report-not-sequence)
+  (report-error
+   (make-property-condition
+    'exn 'message
+    (show #f "expected a top-level YAML sequence of entities in "
+          (yaml-input-filename))
+    'arguments '())))
+
 ;; Streams directly from the named file -- no need to read it into
 ;; memory first the way process-file's stdin case must.
 (define (process-filename filename)
   (parameterize ((yaml-input-filename filename))
     (process-stream (lambda () (document-stream-open-file filename)))))
 
-(define (usage)
-  (with-output-to-port (current-error-port)
+;; To standard output with status 0 for -h/--help; to standard error
+;; with status 2 for a command-line mistake.
+(define (usage #!optional (port (current-error-port)) (status 2))
+  (with-output-to-port port
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
@@ -1210,10 +1262,8 @@
       (newline)
       (print
        "Note: use -1 (or --one) if you are generating this for HTML output,
-as that looks better.")
-      (newline)
-      (show #t "Current argv: " (written (argv)) nl)))
-  (exit 1))
+as that looks better.")))
+  (exit status))
 
 (define *bold-head* #t)
 (define *bolding* #f)
@@ -1286,7 +1336,7 @@ as that looks better.")
          (set! *hmm-separate* #t))
         (args:make-option
          (h help) #:none "Display this text."
-         (usage))
+         (usage (current-output-port) 0))
         (args:make-option
          (i italics) #:none (show #f
                                   "Turn on italicizing of names and levels of
@@ -1336,8 +1386,15 @@ as that looks better.")
          (set! *table-width* (string->number arg)))))
 
 (define (main)
-  (receive (options operands) (args:parse (command-line-arguments)
-                                          +command-line-options+)
+  (receive (options operands)
+      (args:parse (command-line-arguments) +command-line-options+
+                  ;; Not the args egg's default, which calls -h's
+                  ;; procedure.
+                  #:unrecognized-proc
+                  (lambda (opt name arg options operands)
+                    (show (current-error-port) (program-name)
+                          ": unrecognized option: " name nl)
+                    (usage)))
     (define (process-operands)
       (if  (zero? (length operands))
            (with-input-from-port (current-input-port) process-file)
@@ -1346,12 +1403,17 @@ as that looks better.")
     ;; When normally outputing reST bolding is two asterisks on each side.
     (set! *num-width* (+ *num-width* 4))
 
-    (when (and *hmm-output* *hmm-root*)
-      (show #t (indent) *hmm-root* nl))
+    (define (write-output)
+      ;; The root line goes with the rest, into the -o file if any.
+      (when (and *hmm-output* *hmm-root*)
+        (show #t (indent) *hmm-root* nl))
+      (process-operands))
 
     (if *output-file*
-        (with-output-to-file *output-file* process-operands)
-        (process-operands))))
+        (with-output-to-file *output-file* write-output)
+        (write-output))
+    (when *errors-reported*
+      (exit 1))))
 
 ;; Only invoke main if this has been compiled.  That way we can load the
 ;; module into csi and debug it.

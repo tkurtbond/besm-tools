@@ -234,10 +234,13 @@
 
 
 (define (must-exist item alist)
+  ;; An error, not die: process-entities reports it and goes on with the
+  ;; next entity.
   (let ((found (assoc item alist)))
     (if found
         (cdr found)
-        (die 2 "Unable to find " (written item) " in " (written alist)))))
+        (error (show #f "Unable to find " (written item) " in "
+                     (written alist))))))
 
 (define (may-exist item alist)
   (let ((result (assoc item alist)))
@@ -414,7 +417,8 @@
 
     (unless *omit-entity-description*
       (when-in-alist (description "description" entity)
-        (show #t description nl nl)))
+        (show #t description nl nl)
+        (page-after-description)))
   
     (when-in-alist (size "size" entity)
       (show #t (bold "Size:") " " size nl nl))
@@ -499,6 +503,12 @@
     (show #t nl)
     ))
 
+
+;; -p/--page: a page break after the entity's description, which shows
+;; only when the reST goes on to ms.  Every format but h-m-m.
+(define (page-after-description)
+  (when *page-after-description*
+    (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
 
 (define (total-points items)
   (loop for item in items sum (must-exist "points" item)))
@@ -605,8 +615,7 @@
 
     (when (and description (not *omit-entity-description*))
       (show #t description nl nl)
-      (when *page-after-description*
-        (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
+      (page-after-description))
     
     (when size
       (show #t (bold "Size:") " " size nl nl))
@@ -981,7 +990,8 @@
     (unless *omit-entity-description*
       (when-in-alist (description "description" entity)
         (set! paragraph-seen #t)
-        (show #t description nl nl)))
+        (show #t description nl nl)
+        (page-after-description)))
   
     (when-in-alist (size "size" entity)
       (set! paragraph-seen #t)
@@ -1073,39 +1083,93 @@
 
     ;; Output total.
     (set! entity-total (+ stats-total attributes-total defects-total))
-    (when (> entity-total 0)
-      (show #t *raw-prefix* "#" (tbold (points->string entity-total)) "#"
-            (tbold "TOTAL") nl))
+    (show #t *raw-prefix* "#" (tbold (points->string entity-total)) "#"
+          (tbold "TOTAL") nl)
     (show #t *raw-prefix* "=" nl)
-    (show #t *raw-prefix* ".TE" nl)
+    ;; The blank line ends the raw block before the next entity's name.
+    (show #t *raw-prefix* ".TE" nl nl)
     ))
 
 
+;; Set when an error in the input has been reported; main then exits 1.
+(define *errors-reported* #f)
+
+;; Reports exn, an error in the current input file, on one line:
+;; print-error-message starts with a newline.
+(define (report-error exn)
+  (set! *errors-reported* #t)
+  (flush-output (current-output-port))
+  (show (current-error-port)
+        (string-trim-both
+         (call-with-output-string
+          (lambda (port)
+            (print-error-message exn port
+                                 (show #f (program-name) ": error processing "
+                                       (yaml-input-filename))))))
+        nl))
+
+;; The yaml egg reads a mapping as an alist and a sequence as a list, so
+;; a top level that is a mapping is a list whose items' cars are its
+;; keys, where a list of entities is a list of alists.
+(define (entity-list? x)
+  (and (list? x)
+       (not (and (pair? x) (pair? (car x)) (string? (caar x))))))
+
+;; Each entity is written to a string first, so one with an error writes
+;; nothing; it is reported and the next entity is processed.  entity-no
+;; counts only the entities written.
+(define (process-entities entities)
+  (let ((entity-no 0))
+    (loop for entity in entities
+          do (let ((output
+                    (handle-exceptions exn
+                        (begin (report-error exn) #f)
+                      (with-output-to-string
+                        (lambda ()
+                          ;; may-exist, not (assoc "mecha" entity)
+                          ;; directly: assoc returns the found pair
+                          ;; (truthy) whenever the key exists, regardless
+                          ;; of its value, so "mecha: false" used to turn
+                          ;; mecha mode ON same as "mecha: true" --
+                          ;; may-exist unwraps to the actual #t/#f/absent
+                          ;; value.
+                          (parameterize ((mecha? (may-exist "mecha" entity)))
+                            (*output-formatter* entity (+ entity-no 1))))))))
+               (when output
+                 (set! entity-no (+ entity-no 1))
+                 (show #t output))))))
+
 (define (process-file)
-  ;; It is a file of possibly multiple entities.
-  (handle-exceptions exn
-      (begin
-        (show (current-error-port) "Error while trying to load YAML input from " (yaml-input-filename) nl)
-        (print-error-message exn (current-error-port)))
-    (let ((entities (load-from-yaml (current-input-port))))
-      (loop for entity in entities
-            for entity-no from 1
-            ;; may-exist, not (assoc "mecha" entity) directly: assoc
-            ;; returns the found pair (truthy) whenever the key
-            ;; exists, regardless of its value, so "mecha: false"
-            ;; used to turn mecha mode ON same as "mecha: true" --
-            ;; may-exist unwraps to the actual #t/#f/absent value.
-            do (parameterize ((mecha? (may-exist "mecha" entity)))
-                 (*output-formatter* entity entity-no))))))
+  ;; It is a file of possibly multiple entities.  An error loading the
+  ;; YAML ends the file.
+  (let ((entities (handle-exceptions exn
+                      (begin (report-error exn) '())
+                    (load-from-yaml (current-input-port)))))
+    (if (entity-list? entities)
+        (process-entities entities)
+        (report-error
+         (make-property-condition
+          'exn 'message
+          (show #f "expected a top-level YAML sequence of entities in "
+                (yaml-input-filename))
+          'arguments '())))))
 
 (define yaml-input-filename (make-parameter "(stdin)"))
 
+;; A file that can't be opened is reported, and the run goes on.
 (define (process-filename filename)
   (parameterize ((yaml-input-filename filename))
-    (with-input-from-file filename process-file)))
+    (let ((port (handle-exceptions exn
+                    (begin (report-error exn) #f)
+                  (open-input-file filename))))
+      (when port
+        (with-input-from-port port process-file)
+        (close-input-port port)))))
 
-(define (usage)
-  (with-output-to-port (current-error-port)
+;; To standard output with status 0 for -h/--help; to standard error
+;; with status 2 for a command-line mistake.
+(define (usage #!optional (port (current-error-port)) (status 2))
+  (with-output-to-port port
     (lambda ()
       (print "Usage: " (program-name) " [options...] [files...]")
       (newline)
@@ -1113,10 +1177,8 @@
       (newline)
       (print
        "Note: use -1 (or --one) if you are generating this for HTML output,
-as that looks better.")
-      (newline)
-      (show #t "Current argv: " (written (argv)) nl)))
-  (exit 1))
+as that looks better.")))
+  (exit status))
 
 (define *bold-head* #t)
 (define *bolding* #f)
@@ -1192,7 +1254,7 @@ as that looks better.")
          (set! *hmm-separate* #t))
         (args:make-option
          (h help) #:none "Display this text."
-         (usage))
+         (usage (current-output-port) 0))
         (args:make-option
          (i italics) #:none (show #f
                                   "Turn on italicizing of names and levels of
@@ -1242,8 +1304,15 @@ as that looks better.")
          (set! *table-width* (string->number arg)))))
 
 (define (main)
-  (receive (options operands) (args:parse (command-line-arguments)
-                                          +command-line-options+)
+  (receive (options operands)
+      (args:parse (command-line-arguments) +command-line-options+
+                  ;; Not the args egg's default, which calls -h's
+                  ;; procedure.
+                  #:unrecognized-proc
+                  (lambda (opt name arg options operands)
+                    (show (current-error-port) (program-name)
+                          ": unrecognized option: " name nl)
+                    (usage)))
     (define (process-operands)
       (if  (zero? (length operands))
            (with-input-from-port (current-input-port) process-file)
@@ -1252,12 +1321,17 @@ as that looks better.")
     ;; When normally outputing reST bolding is two asterisks on each side.
     (set! *num-width* (+ *num-width* 4))
 
-    (when (and *hmm-output* *hmm-root*)
-      (show #t (indent) *hmm-root* nl))
+    (define (write-output)
+      ;; The root line goes with the rest, into the -o file if any.
+      (when (and *hmm-output* *hmm-root*)
+        (show #t (indent) *hmm-root* nl))
+      (process-operands))
 
     (if *output-file*
-        (with-output-to-file *output-file* process-operands)
-        (process-operands))))
+        (with-output-to-file *output-file* write-output)
+        (write-output))
+    (when *errors-reported*
+      (exit 1))))
 
 ;; Only invoke main if this has been compiled.  That way we can load the
 ;; module into csi and debug it. 

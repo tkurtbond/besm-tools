@@ -60,14 +60,13 @@
 ;;;    and avoids relying on `pretty` having sensible behavior on a
 ;;;    record, or a node-path call needing a live node handle that may no
 ;;;    longer exist by formatting time (see note 2).
-;;; 2. Each program's process-file now loads *all* of a file's entities
-;;;    into plain records before formatting any of them (`map load-entity
-;;;    ...` up front, rather than looping load-and-immediately-format one
-;;;    at a time as besm2-rst.scm/besm2-rst-f.scm do). A malformed later
-;;;    entity is therefore caught before any output for *any* entity in
-;;;    that file has been printed, rather than aborting mid-stream after
-;;;    earlier entities' output has already gone out -- a small, deliberate
-;;;    improvement, not something to change silently without mention.
+;;; 2. Each entity is decoded into a plain record and then formatted, one
+;;;    at a time, into a string that is written only if both succeed, as
+;;;    in besm2-rst.scm/besm2-rst-f.scm.  A malformed entity is reported
+;;;    and writes nothing, and the next entity is processed; the run then
+;;;    exits 1.  (Each program's process-file used to decode all of a
+;;;    file's entities up front, so one malformed entity lost the whole
+;;;    file.)
 ;;;
 ;;; Field-level design notes (why some things are pre-computed once and
 ;;; others are deliberately left for the formatters to finish):
@@ -295,6 +294,12 @@
 
 ;; #f if items is #f (category absent from the entity); otherwise the sum
 ;; of (accessor item) over items -- e.g. (total-points-of stats stat-points).
+;; -p/--page: a page break after the entity's description, which shows
+;; only when the reST goes on to ms.  Every format but h-m-m.
+(define (page-after-description)
+  (when (*page-after-description*)
+    (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
+
 (define (total-points-of items accessor)
   (if items (loop for item in items sum (accessor item)) 0))
 
@@ -601,7 +606,8 @@
 
   (unless (*omit-entity-description*)
     (when (entity-description entity)
-      (show #t (entity-description entity) nl nl)))
+      (show #t (entity-description entity) nl nl)
+      (page-after-description)))
 
   (when (entity-size entity)
     (show #t (bold "Size:") " " (entity-size entity) nl nl))
@@ -745,8 +751,7 @@
 
   (when (and (entity-description entity) (not (*omit-entity-description*)))
     (show #t (entity-description entity) nl nl)
-    (when (*page-after-description*)
-      (show #t ".. raw:: ms" nl nl "   .bp" nl nl)))
+    (page-after-description))
 
   (when (entity-size entity)
     (show #t (bold "Size:") " " (entity-size entity) nl nl))
@@ -1036,7 +1041,8 @@
     (unless (*omit-entity-description*)
       (when (entity-description entity)
         (set! paragraph-seen #t)
-        (show #t (entity-description entity) nl nl)))
+        (show #t (entity-description entity) nl nl)
+        (page-after-description)))
 
     (when (entity-size entity)
       (set! paragraph-seen #t)
@@ -1122,10 +1128,10 @@
       (show #t *raw-prefix* nl))
 
     ;; Output total.
-    (when (> (entity-entity-total entity) 0)
-      (show #t *raw-prefix* "#" (tbold (points->string (entity-entity-total entity))) "#"
-            (tbold "TOTAL") nl))
+    (show #t *raw-prefix* "#" (tbold (points->string (entity-entity-total entity))) "#"
+          (tbold "TOTAL") nl)
     (show #t *raw-prefix* "=" nl)
-    (show #t *raw-prefix* ".TE" nl)))
+    ;; The blank line ends the raw block before the next entity's name.
+    (show #t *raw-prefix* ".TE" nl nl)))
 
 )
