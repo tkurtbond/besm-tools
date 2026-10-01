@@ -75,6 +75,14 @@ TEST_UNICODE_MINUS_OUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffi
 # negative numbers.
 TEST_UNICODE_MINUS_TBLOUTPUT=$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus.gen.rst,$(basename $(f) .yaml)))
 
+# 2E-only, since besm4-rst.scm has no h-m-m output: the generated
+# h-m-m outlines (-H/--hmm), with items in their entity's node, and as
+# separate nodes (-S/--hmm-separate).  No PDF, since h-m-m isn't reST,
+# and no -n variant, since h-m-m writes no minus sign.
+TEST_HMMOUTPUT=\
+	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix .gen.hmm,$(basename $(f) .yaml))) \
+	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -separate.gen.hmm,$(basename $(f) .yaml)))
+
 # The letter-sized PDFs for the two Unicode-MINUS-SIGN variants above,
 # for comparing side by side against their hyphen-minus counterparts
 # in TEST_LETTEROUTPUT.
@@ -196,6 +204,8 @@ letter: rst $(TEST_LETTEROUTPUT)
 native: rst $(TEST_NATIVEOUTPUT)
 
 tbl: rst $(TEST_TBLOUTPUT)
+
+hmm: build/besm2-rst $(TEST_HMMOUTPUT)
 
 html: rst $(TEST_HTMLOUTPUT)
 
@@ -397,7 +407,7 @@ clean: testclean
 	-rm -v $(PROGRAMS)
 	-rm -v besm-entities.import.scm besm-rst.import.scm
 testclean:
-	-rm -v	build/*.gen.rst build/*.ms.pdf \
+	-rm -v	build/*.gen.rst build/*.gen.hmm build/*.ms.pdf \
 		build/*.native build/*.ms \
 		build/*.html build/*.yamlerr \
 		build/synthetic-*.yaml build/benchmark-fyaml.out
@@ -434,6 +444,12 @@ build/%-2e-unicode-minus.gen.rst : test-data/%-2e.yaml build/besm2-rst
 
 build/%-2e-tbl-unicode-minus.gen.rst : test-data/%-2e.yaml build/besm2-rst
 	build/besm2-rst -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign
+
+build/%-2e.gen.hmm : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -H $(BR2EOPTS) $< >$@ # h-m-m
+
+build/%-2e-separate.gen.hmm : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -s -H -S $(BR2EOPTS) $< >$@ # h-m-m, items as separate nodes
 
 # The same variants as above, but loading the YAML with the slibfyaml
 # egg (-f/--fyaml) instead of the yaml egg, for comparison.
