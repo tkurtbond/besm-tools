@@ -92,6 +92,22 @@ TEST_UNICODE_MINUS_LETTEROUTPUT=\
 	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -unicode-minus.ms.pdf,$(basename $(f) .yaml))) \
 	$(foreach f,$(notdir $(TEST_DATA_2E)),build/$(addsuffix -tbl-unicode-minus.ms.pdf,$(basename $(f) .yaml)))
 
+# 2E-only, since besm4-rst isn't being compared: every besm2-rst reST
+# variant above (plain, terse, TBL, and the Unicode-MINUS-SIGN
+# variants) again without -s/--subtotals, with "-nosubtotals" after
+# the variant's name, plus their letter-sized PDFs, for comparing
+# side by side against the output with subtotals.  The -fyaml,
+# -treefyaml, -entity and -entitytree families below each have them
+# too, with their own suffix after "-nosubtotals".
+NOSUBTOTALS_VARIANTS=-nosubtotals -terse-nosubtotals -tbl-nosubtotals \
+	-unicode-minus-nosubtotals -tbl-unicode-minus-nosubtotals
+TEST_NOSUBTOTALS_OUTPUT=$(foreach v,$(NOSUBTOTALS_VARIANTS),$(foreach e,$(ENTITY_NAMES_2E),build/$(e)$(v).gen.rst))
+TEST_NOSUBTOTALS_LETTEROUTPUT=$(TEST_NOSUBTOTALS_OUTPUT:.gen.rst=.ms.pdf)
+TEST_NOSUBTOTALS_FYAMLOUTPUT=$(TEST_NOSUBTOTALS_OUTPUT:.gen.rst=-fyaml.gen.rst)
+TEST_NOSUBTOTALS_TREEFYAMLOUTPUT=$(TEST_NOSUBTOTALS_OUTPUT:.gen.rst=-treefyaml.gen.rst)
+TEST_NOSUBTOTALS_ENTITYOUTPUT=$(TEST_NOSUBTOTALS_OUTPUT:.gen.rst=-entity.gen.rst)
+TEST_NOSUBTOTALS_ENTITYTREEOUTPUT=$(TEST_NOSUBTOTALS_OUTPUT:.gen.rst=-entitytree.gen.rst)
+
 # besm2-rst can load YAML using either the yaml egg (the default) or
 # the slibfyaml egg (-f/--fyaml). The lists and rules below build
 # every besm2-rst reST variant (plain, terse, TBL, and the
@@ -210,6 +226,11 @@ stmt: rst $(TEST_STMTOUTPUT)
 
 letter: rst $(TEST_LETTEROUTPUT)
 
+# Every letter-sized PDF, as the ports' make pdf builds: the default
+# variants (letter), and the Unicode-MINUS-SIGN and no-subtotals
+# comparison variants.
+pdf: letter unicode-minus nosubtotals
+
 # terseletter: rst $(TEST_TERSELETTEROUTPUT)
 
 native: rst $(TEST_NATIVEOUTPUT)
@@ -226,13 +247,19 @@ unicode-minus: rst \
 	$(TEST_UNICODE_MINUS_OUTPUT) $(TEST_UNICODE_MINUS_TBLOUTPUT) \
 	$(TEST_UNICODE_MINUS_LETTEROUTPUT)
 
+# The no-subtotals comparison variants (2E only -- see
+# TEST_NOSUBTOTALS_OUTPUT above), plus their letter-sized PDFs.
+nosubtotals: build/besm2-rst \
+	$(TEST_NOSUBTOTALS_OUTPUT) $(TEST_NOSUBTOTALS_LETTEROUTPUT)
+
 # Every besm2-rst variant (plain, terse, TBL, and the Unicode-MINUS-SIGN
 # variants), built with the slibfyaml egg (-f/--fyaml) instead of the
 # yaml egg, for comparison against the default output built by "rst"
 # and "unicode-minus".
-fyaml: rst unicode-minus \
+fyaml: rst unicode-minus nosubtotals \
 	$(TEST_FYAML_OUTPUT) $(TEST_TERSEFYAMLOUTPUT) $(TEST_TBLFYAMLOUTPUT) \
-	$(TEST_UNICODE_MINUS_FYAMLOUTPUT) $(TEST_UNICODE_MINUS_TBLFYAMLOUTPUT)
+	$(TEST_UNICODE_MINUS_FYAMLOUTPUT) $(TEST_UNICODE_MINUS_TBLFYAMLOUTPUT) \
+	$(TEST_NOSUBTOTALS_FYAMLOUTPUT)
 
 # Diff each yaml-egg reST file against its slibfyaml-egg counterpart
 # and report which pairs match and which differ.
@@ -240,7 +267,8 @@ compare-fyaml: fyaml
 	@status=0; \
 	for base in $(ENTITY_NAMES_2E_ONE_DOC); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
-			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst \
+			   $(NOSUBTOTALS_VARIANTS:%=%.gen.rst); do \
 			yamlf=build/$$base$$suf; \
 			fyamlf=build/$$base$${suf%.gen.rst}-fyaml.gen.rst; \
 			if diff -q $$yamlf $$fyamlf >/dev/null 2>&1; then \
@@ -260,9 +288,10 @@ compare-fyaml: fyaml
 # materializing it up front -- for comparison against the default
 # yaml-egg output built by "rst" and "unicode-minus" (see
 # compare-treefyaml).
-treefyaml: rst unicode-minus \
+treefyaml: rst unicode-minus nosubtotals \
 	$(TEST_TREEFYAML_OUTPUT) $(TEST_TERSETREEFYAMLOUTPUT) $(TEST_TBLTREEFYAMLOUTPUT) \
-	$(TEST_UNICODE_MINUS_TREEFYAMLOUTPUT) $(TEST_UNICODE_MINUS_TBLTREEFYAMLOUTPUT)
+	$(TEST_UNICODE_MINUS_TREEFYAMLOUTPUT) $(TEST_UNICODE_MINUS_TBLTREEFYAMLOUTPUT) \
+	$(TEST_NOSUBTOTALS_TREEFYAMLOUTPUT)
 
 # Diff each yaml-egg reST file against its besm2-rst-f (handle/tree
 # API) counterpart and report which pairs match and which differ.
@@ -270,7 +299,8 @@ compare-treefyaml: treefyaml
 	@status=0; \
 	for base in $(ENTITY_NAMES_2E_ONE_DOC); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
-			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst \
+			   $(NOSUBTOTALS_VARIANTS:%=%.gen.rst); do \
 			yamlf=build/$$base$$suf; \
 			treefyamlf=build/$$base$${suf%.gen.rst}-treefyaml.gen.rst; \
 			if diff -q $$yamlf $$treefyamlf >/dev/null 2>&1; then \
@@ -291,9 +321,10 @@ compare-treefyaml: treefyaml
 # YAML the same way besm2-rst's default path does -- for comparison
 # against the default yaml-egg output built by "rst" and
 # "unicode-minus" (see compare-entity).
-entity: rst unicode-minus \
+entity: rst unicode-minus nosubtotals \
 	$(TEST_ENTITY_OUTPUT) $(TEST_TERSEENTITYOUTPUT) $(TEST_TBLENTITYOUTPUT) \
-	$(TEST_UNICODE_MINUS_ENTITYOUTPUT) $(TEST_UNICODE_MINUS_TBLENTITYOUTPUT)
+	$(TEST_UNICODE_MINUS_ENTITYOUTPUT) $(TEST_UNICODE_MINUS_TBLENTITYOUTPUT) \
+	$(TEST_NOSUBTOTALS_ENTITYOUTPUT)
 
 # Diff each yaml-egg reST file against its besm2-rst-e (shared entity
 # record) counterpart and report which pairs match and which differ.
@@ -301,7 +332,8 @@ compare-entity: entity
 	@status=0; \
 	for base in $(ENTITY_NAMES_2E); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
-			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst \
+			   $(NOSUBTOTALS_VARIANTS:%=%.gen.rst); do \
 			yamlf=build/$$base$$suf; \
 			entityf=build/$$base$${suf%.gen.rst}-entity.gen.rst; \
 			if diff -q $$yamlf $$entityf >/dev/null 2>&1; then \
@@ -320,9 +352,10 @@ compare-entity: entity
 # refactored the same way besm2-rst-e refactors besm2-rst -- for
 # comparison against the default yaml-egg output built by "rst" and
 # "unicode-minus" (see compare-entitytree).
-entitytree: rst unicode-minus \
+entitytree: rst unicode-minus nosubtotals \
 	$(TEST_ENTITYTREE_OUTPUT) $(TEST_TERSEENTITYTREEOUTPUT) $(TEST_TBLENTITYTREEOUTPUT) \
-	$(TEST_UNICODE_MINUS_ENTITYTREEOUTPUT) $(TEST_UNICODE_MINUS_TBLENTITYTREEOUTPUT)
+	$(TEST_UNICODE_MINUS_ENTITYTREEOUTPUT) $(TEST_UNICODE_MINUS_TBLENTITYTREEOUTPUT) \
+	$(TEST_NOSUBTOTALS_ENTITYTREEOUTPUT)
 
 # Diff each yaml-egg reST file against its besm2-rst-f-e (handle/tree,
 # shared entity record) counterpart and report which pairs match and
@@ -331,7 +364,8 @@ compare-entitytree: entitytree
 	@status=0; \
 	for base in $(ENTITY_NAMES_2E_ONE_DOC); do \
 		for suf in .gen.rst -terse.gen.rst -tbl.gen.rst \
-			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst; do \
+			   -unicode-minus.gen.rst -tbl-unicode-minus.gen.rst \
+			   $(NOSUBTOTALS_VARIANTS:%=%.gen.rst); do \
 			yamlf=build/$$base$$suf; \
 			entitytreef=build/$$base$${suf%.gen.rst}-entitytree.gen.rst; \
 			if diff -q $$yamlf $$entitytreef >/dev/null 2>&1; then \
@@ -540,6 +574,87 @@ build/%-2e-unicode-minus-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rs
 build/%-2e-tbl-unicode-minus-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
 	build/besm2-rst-f-e -s -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, handle/tree, shared entity record
 
+# Each besm2-rst variant above (with every family: the yaml egg, the
+# slibfyaml egg, besm2-rst-f, besm2-rst-e and besm2-rst-f-e) again,
+# but without -s/--subtotals, with "-nosubtotals" after the variant's
+# name, so the output with and without the subtotals (and the skill
+# points total) can be compared side by side.
+
+build/%-2e-nosubtotals.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst $(BR2EOPTS) $< >$@ # no subtotals
+
+build/%-2e-terse-nosubtotals.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -t $(BR2EOPTS) $< >$@ # terse, no subtotals
+
+build/%-2e-tbl-nosubtotals.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -m $(BR2EOPTS) $< >$@ # ms tables, no subtotals
+
+build/%-2e-unicode-minus-nosubtotals.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -n $(BR2EOPTS) $< >$@ # unicode minus sign, no subtotals
+
+build/%-2e-tbl-unicode-minus-nosubtotals.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, no subtotals
+
+build/%-2e-nosubtotals-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -f $(BR2EOPTS) $< >$@ # no subtotals, fyaml egg
+
+build/%-2e-terse-nosubtotals-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -t -f $(BR2EOPTS) $< >$@ # terse, no subtotals, fyaml egg
+
+build/%-2e-tbl-nosubtotals-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -m -f $(BR2EOPTS) $< >$@ # ms tables, no subtotals, fyaml egg
+
+build/%-2e-unicode-minus-nosubtotals-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -n -f $(BR2EOPTS) $< >$@ # unicode minus sign, no subtotals, fyaml egg
+
+build/%-2e-tbl-unicode-minus-nosubtotals-fyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst
+	build/besm2-rst -m -n -f $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, no subtotals, fyaml egg
+
+build/%-2e-nosubtotals-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f $(BR2EOPTS) $< >$@ # no subtotals, handle/tree slibfyaml
+
+build/%-2e-terse-nosubtotals-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -t $(BR2EOPTS) $< >$@ # terse, no subtotals, handle/tree slibfyaml
+
+build/%-2e-tbl-nosubtotals-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -m $(BR2EOPTS) $< >$@ # ms tables, no subtotals, handle/tree slibfyaml
+
+build/%-2e-unicode-minus-nosubtotals-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -n $(BR2EOPTS) $< >$@ # unicode minus sign, no subtotals, handle/tree slibfyaml
+
+build/%-2e-tbl-unicode-minus-nosubtotals-treefyaml.gen.rst : test-data/%-2e.yaml build/besm2-rst-f
+	build/besm2-rst-f -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, no subtotals, handle/tree slibfyaml
+
+build/%-2e-nosubtotals-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e $(BR2EOPTS) $< >$@ # no subtotals, shared entity record
+
+build/%-2e-terse-nosubtotals-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -t $(BR2EOPTS) $< >$@ # terse, no subtotals, shared entity record
+
+build/%-2e-tbl-nosubtotals-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -m $(BR2EOPTS) $< >$@ # ms tables, no subtotals, shared entity record
+
+build/%-2e-unicode-minus-nosubtotals-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -n $(BR2EOPTS) $< >$@ # unicode minus sign, no subtotals, shared entity record
+
+build/%-2e-tbl-unicode-minus-nosubtotals-entity.gen.rst : test-data/%-2e.yaml build/besm2-rst-e
+	build/besm2-rst-e -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, no subtotals, shared entity record
+
+build/%-2e-nosubtotals-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e $(BR2EOPTS) $< >$@ # no subtotals, handle/tree, shared entity record
+
+build/%-2e-terse-nosubtotals-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -t $(BR2EOPTS) $< >$@ # terse, no subtotals, handle/tree, shared entity record
+
+build/%-2e-tbl-nosubtotals-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -m $(BR2EOPTS) $< >$@ # ms tables, no subtotals, handle/tree, shared entity record
+
+build/%-2e-unicode-minus-nosubtotals-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -n $(BR2EOPTS) $< >$@ # unicode minus sign, no subtotals, handle/tree, shared entity record
+
+build/%-2e-tbl-unicode-minus-nosubtotals-entitytree.gen.rst : test-data/%-2e.yaml build/besm2-rst-f-e
+	build/besm2-rst-f-e -m -n $(BR2EOPTS) $< >$@ # ms tables, unicode minus sign, no subtotals, handle/tree, shared entity record
+
 # A synthetic large 2E YAML file for benchmark-fyaml: the body of
 # enyon-boase-2e.yaml (everything after its leading "---") repeated N
 # times, which is already a valid way to get an N-entity YAML
@@ -619,6 +734,21 @@ $(BINDIR)/% : build/%
 	build/%-4e.gen.rst build/%-4e-terse.gen.rst build/%-4e-tbl.gen.rst \
 	build/%-2e.gen.rst build/%-2e-terse.gen.rst build/%-2e-tbl.gen.rst \
 	build/%-2e-unicode-minus.gen.rst build/%-2e-tbl-unicode-minus.gen.rst \
+	build/%-2e-nosubtotals.gen.rst build/%-2e-terse-nosubtotals.gen.rst \
+	build/%-2e-tbl-nosubtotals.gen.rst build/%-2e-unicode-minus-nosubtotals.gen.rst \
+	build/%-2e-tbl-unicode-minus-nosubtotals.gen.rst \
+	build/%-2e-nosubtotals-fyaml.gen.rst build/%-2e-terse-nosubtotals-fyaml.gen.rst \
+	build/%-2e-tbl-nosubtotals-fyaml.gen.rst build/%-2e-unicode-minus-nosubtotals-fyaml.gen.rst \
+	build/%-2e-tbl-unicode-minus-nosubtotals-fyaml.gen.rst \
+	build/%-2e-nosubtotals-treefyaml.gen.rst build/%-2e-terse-nosubtotals-treefyaml.gen.rst \
+	build/%-2e-tbl-nosubtotals-treefyaml.gen.rst build/%-2e-unicode-minus-nosubtotals-treefyaml.gen.rst \
+	build/%-2e-tbl-unicode-minus-nosubtotals-treefyaml.gen.rst \
+	build/%-2e-nosubtotals-entity.gen.rst build/%-2e-terse-nosubtotals-entity.gen.rst \
+	build/%-2e-tbl-nosubtotals-entity.gen.rst build/%-2e-unicode-minus-nosubtotals-entity.gen.rst \
+	build/%-2e-tbl-unicode-minus-nosubtotals-entity.gen.rst \
+	build/%-2e-nosubtotals-entitytree.gen.rst build/%-2e-terse-nosubtotals-entitytree.gen.rst \
+	build/%-2e-tbl-nosubtotals-entitytree.gen.rst build/%-2e-unicode-minus-nosubtotals-entitytree.gen.rst \
+	build/%-2e-tbl-unicode-minus-nosubtotals-entitytree.gen.rst \
 	build/%-2e-fyaml.gen.rst build/%-2e-terse-fyaml.gen.rst \
 	build/%-2e-tbl-fyaml.gen.rst build/%-2e-unicode-minus-fyaml.gen.rst \
 	build/%-2e-tbl-unicode-minus-fyaml.gen.rst \
