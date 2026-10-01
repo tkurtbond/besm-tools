@@ -1069,7 +1069,7 @@
       (when (*show-subtotals*)
         (show #t *raw-prefix* "#" (tbold (number->string (entity-stats-total entity))) "#"
               (tbold "STATS TOTAL") nl))
-      (show #t *raw-prefix* nl))
+      (show #t nl))
 
     (when (entity-derived entity)
       (when first-section-seen
@@ -1081,7 +1081,7 @@
         (show #t *raw-prefix* "=" nl))
       (show #t *raw-prefix* (tbold "VALUE") "#" (tbold "DERIVED VALUE") nl)
       (loop for d in (entity-derived entity) do (process-derived-raw-ms d))
-      (show #t *raw-prefix* nl))
+      (show #t nl))
 
     (when (entity-attributes entity)
       (when first-section-seen
@@ -1098,7 +1098,7 @@
       (when (*show-subtotals*)
         (show #t *raw-prefix* "#" (tbold (number->string (entity-attributes-total entity))) "#"
               (tbold "ATTRIBUTES TOTAL") nl))
-      (show #t *raw-prefix* nl))
+      (show #t nl))
 
     (when (entity-defects entity)
       (when first-section-seen
@@ -1116,7 +1116,7 @@
       (when (*show-subtotals*)
         (show #t *raw-prefix* "#" (tbold (points->string (entity-defects-total entity))) "#"
               (tbold "DEFECTS TOTAL") nl))
-      (show #t *raw-prefix* nl))
+      (show #t nl))
 
     (when (entity-skills entity)
       (when first-section-seen
@@ -1132,7 +1132,7 @@
       (when (*show-subtotals*)
         (show #t *raw-prefix* "#" (tbold (number->string (entity-skills-total entity))) "#"
               (tbold "SKILL POINTS TOTAL") nl))
-      (show #t *raw-prefix* nl))
+      (show #t nl))
 
     ;; Output total.  Its row has three columns, so it needs a format
     ;; of its own when there was no section, or the last was derived.
