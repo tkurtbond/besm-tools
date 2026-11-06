@@ -120,7 +120,7 @@
    entity-size entity-mecha? entity-stats entity-derived
    entity-attributes entity-defects entity-skills
    entity-stats-total entity-attributes-total entity-defects-total
-   entity-skills-total entity-entity-total
+   entity-skills-total entity-entity-total entity-notes
 
    ;; Loader helpers shared by both programs' load-entity.
    make-attribute-details total-points-of sort-by-name-ci
@@ -265,12 +265,14 @@
 ;; absent. tagline is already string-trim-both'd. stats/derived are #f or
 ;; a list, in document order; attributes/defects/skills are #f or a list,
 ;; sorted case-insensitively by name (sort-by-name-ci, in each program's
-;; load-entity). *-total fields are pre-summed (total-points-of).
+;; load-entity). *-total fields are pre-summed (total-points-of). notes
+;; is the optional "notes" list (besm2_cg_po's PLAN.md, A4), each note
+;; string-trim-both'd, in document order; '() when there are none.
 (define-record-type <entity>
   (make-entity name tagline description size mecha?
                stats derived attributes defects skills
                stats-total attributes-total defects-total skills-total
-               entity-total)
+               entity-total notes)
   entity?
   (name entity-name)
   (tagline entity-tagline)
@@ -286,7 +288,8 @@
   (attributes-total entity-attributes-total)
   (defects-total entity-defects-total)
   (skills-total entity-skills-total)
-  (entity-total entity-entity-total))
+  (entity-total entity-entity-total)
+  (notes entity-notes))
 
 ;;; ------------------------------------------------------------------
 ;;; Loader helpers shared by both programs' load-entity.
@@ -294,6 +297,16 @@
 
 ;; #f if items is #f (category absent from the entity); otherwise the sum
 ;; of (accessor item) over items -- e.g. (total-points-of stats stat-points).
+;; notes as a reST bullet list after a bold "Notes:" paragraph, the
+;; lines after a note's first indented two blanks so it stays one item.
+;; The terse, grid and raw ms formats end an entity with this.
+(define (process-notes notes)
+  (unless (null? notes)
+    (show #t (bold "Notes:") nl nl)
+    (loop for note in notes
+          do (show #t "- " (string-join (string-split note "\n") "\n  ") nl))
+    (show #t nl)))
+
 ;; -p/--page: a page break after the entity's description, which shows
 ;; only when the reST goes on to ms.  Every format but h-m-m.
 (define (page-after-description)
@@ -687,7 +700,8 @@
   (row3 "" (text (hbolding (points->string (entity-entity-total entity))))
         (text (hbolding "TOTAL")))
   (sep3)
-  (show #t nl))
+  (show #t nl)
+  (process-notes (entity-notes entity)))
 
 ;;; ------------------------------------------------------------------
 ;;; Terse output.
@@ -817,7 +831,9 @@
           for i from 1
           when (> i 1) do (show #t ", ")
           do (process-skill-terse skill))
-    (show #t nl nl)))
+    (show #t nl nl))
+
+  (process-notes (entity-notes entity)))
 
 ;;; ------------------------------------------------------------------
 ;;; h-m-m output.
@@ -963,6 +979,17 @@
                 for i from 1
                 when (> i 1) do (show #t (if (*hmm-separate*) (each nl (indent)) ", "))
                 do (process-skill-hmm skill))
+          (show #t nl))))
+
+    (unless (null? (entity-notes entity))
+      (depth+
+        (show #t (indent) (bold "Notes") nl)
+        (depth+
+          (show #t (indent))
+          (loop for note in (entity-notes entity)
+                for i from 1
+                when (> i 1) do (show #t (if (*hmm-separate*) (each nl (indent)) "; "))
+                do (show #t (all-one-line note)))
           (show #t nl))))))
 
 ;;; ------------------------------------------------------------------
@@ -1152,6 +1179,7 @@
           (tbold "TOTAL") nl)
     (show #t *raw-prefix* "=" nl)
     ;; The blank line ends the raw block before the next entity's name.
-    (show #t *raw-prefix* ".TE" nl nl)))
+    (show #t *raw-prefix* ".TE" nl nl)
+    (process-notes (entity-notes entity))))
 
 )

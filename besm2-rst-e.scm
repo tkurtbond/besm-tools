@@ -193,7 +193,9 @@
                  (may-exist "mecha" entity)
                  stats derived attributes defects skills
                  stats-total attributes-total defects-total skills-total
-                 (+ stats-total attributes-total defects-total))))
+                 (+ stats-total attributes-total defects-total)
+                 (let ((notes (may-exist "notes" entity)))
+                   (if (pair? notes) (map string-trim-both notes) '())))))
 
 ;; The yaml egg reads a mapping as an alist and a sequence as a list, so
 ;; a top level that is a mapping is a list whose items' cars are its

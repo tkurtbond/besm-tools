@@ -216,7 +216,9 @@
                  (node-boolean-value entity "mecha" #f)
                  stats derived attributes defects skills
                  stats-total attributes-total defects-total skills-total
-                 (+ stats-total attributes-total defects-total))))
+                 (+ stats-total attributes-total defects-total)
+                 (let ((notes (node-optional-strings entity "notes")))
+                   (if (pair? notes) (map string-trim-both notes) '())))))
 
 ;; Processes every "---"-separated document that stream yields, in
 ;; order, threading entity-no across all of them so entity numbering is

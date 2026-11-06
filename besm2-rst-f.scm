@@ -569,8 +569,26 @@
           (text (hbolding "TOTAL")))
     (sep3)
     (show #t nl)
+    (process-notes (entity-notes entity))
     ))
 
+
+;; The entity's optional "notes": short lines about it that aren't
+;; priced (besm2_cg_po's PLAN.md, A4), trimmed, in document order; '()
+;; when there are none.
+(define (entity-notes entity)
+  (let ((notes (node-optional-strings entity "notes")))
+    (if (pair? notes) (map string-trim-both notes) '())))
+
+;; notes as a reST bullet list after a bold "Notes:" paragraph, the
+;; lines after a note's first indented two blanks so it stays one item.
+;; The terse, grid and raw ms formats end an entity with this.
+(define (process-notes notes)
+  (unless (null? notes)
+    (show #t (bold "Notes:") nl nl)
+    (loop for note in notes
+          do (show #t "- " (string-join (string-split note "\n") "\n  ") nl))
+    (show #t nl)))
 
 ;; -p/--page: a page break after the entity's description, which shows
 ;; only when the reST goes on to ms.  Every format but h-m-m.
@@ -743,6 +761,8 @@
             when (> i 1) do (show #t ", ")
             do (process-skill-terse skill))
       (show #t nl nl))
+
+    (process-notes (entity-notes entity))
     ))
 
 (define-syntax depth+
@@ -937,7 +957,19 @@
                   for i from 1
                   when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-skill-hmm skill))
-            (show #t nl)))))))
+            (show #t nl))))
+
+      (let ((notes (entity-notes entity)))
+        (unless (null? notes)
+          (depth+
+            (show #t (indent) (bold "Notes") nl)
+            (depth+
+              (show #t (indent))
+              (loop for note in notes
+                    for i from 1
+                    when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) "; "))
+                    do (show #t (all-one-line note)))
+              (show #t nl))))))))
 
 
 (define (tbold s)                       ; Troff bold.
@@ -1169,6 +1201,7 @@
     (show #t *raw-prefix* "=" nl)
     ;; The blank line ends the raw block before the next entity's name.
     (show #t *raw-prefix* ".TE" nl nl)
+    (process-notes (entity-notes entity))
     ))
 
 
