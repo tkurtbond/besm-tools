@@ -281,11 +281,49 @@
   (show #t (with ((width *table-width*))
              (columnar "|" (displayed " ") "|"))))
 
+;; greedy-wrapped: a column that fills like besm2_fmt's Word_Wrap.
+;; Words are split on runs of space, LF, CR and HT and joined by one
+;; space; a word goes on the current line if the line, a space and the
+;; word fit in the column's width (a line may fill the last place),
+;; else it starts a new line.  A word wider than the column is put on a
+;; line of its own.  (schemepunk's `wrapped' never fills the last place
+;; and balances the lines instead, so a line that exactly filled its
+;; column wrapped one word earlier than in besm2_fmt.)
+;; The words of s: its runs of characters other than space, LF, CR and
+;; HT.  (Written out because (chicken string) and (srfi 152) each have a
+;; string-split, and they split differently.)
+(define (wrap-words s)
+  (let loop ((cs (string->list s)) (word '()) (words '()))
+    (define (add) (if (null? word) words (cons (list->string (reverse word)) words)))
+    (cond ((null? cs) (reverse (add)))
+          ((memv (car cs) '(#\space #\newline #\return #\tab))
+           (loop (cdr cs) '() (add)))
+          (else (loop (cdr cs) (cons (car cs) word) words)))))
+
+(define (greedy-wrap-lines s max-width string-width)
+  (let loop ((words (wrap-words s))
+             (line #f) (lines '()))
+    (cond ((null? words)
+           (reverse (cons (or line "") lines)))
+          ((not line)
+           (loop (cdr words) (car words) lines))
+          ((<= (+ (string-width line) 1 (string-width (car words))) max-width)
+           (loop (cdr words) (string-append line " " (car words)) lines))
+          (else
+           (loop (cdr words) (car words) (cons line lines))))))
+
+(define (greedy-wrapped x)
+  (fn (width string-width)
+    (joined displayed
+            (greedy-wrap-lines (if (string? x) x (show #f (displayed x)))
+                               width string-width)
+            nl)))
+
 (define (row2 col1 col2)
   (dbg (dfmt "row2: col1: " (written col1) " col2: " (written col2) nl))
   (show #t (with ((width *table-width*))
              (columnar "|" *num-width* (displayed col1)
-                       "|" (wrapped col2)
+                       "|" (greedy-wrapped col2)
                        "|"))))
 
 (define (headsep2)
@@ -300,7 +338,7 @@
   (show #t (with ((width *table-width*))
              (columnar "|" *num-width* (displayed col1)
                        "|" *num-width* (displayed col2)
-                       "|" (wrapped (displayed col3))
+                       "|" (greedy-wrapped col3)
                        "|"))))
 (define (headsep3)
   (separator-line 3 #\+ *head-sep*))
