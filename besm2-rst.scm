@@ -115,8 +115,8 @@
 
 (define mecha? (make-parameter #f))
 
-(define (label-points points)
-  (show #f (abs points) (if (mecha?)
+(define (label-points points #!optional (mark ""))
+  (show #f (abs points) mark (if (mecha?)
                             (if (< points 0) " MBP" " MP")
                             (if (< points 0) " BP" " CP"))))
 
@@ -286,12 +286,144 @@
         (cdr result)
         result)))
 
+;;; The keys besm2_cg_po's PLAN.md (A4) adds, all optional, as
+;;; besm2_fmt prints them.
+
+;; What follows an overridden number (`overrides:`) in the terse and
+;; grid formats: "*", escaped so that reST doesn't read it as the
+;; start of emphasis.
+(define override-mark "\\*")
+
+;; The sign before a Weapon Attack Ability or Disability's count when
+;; it is taken two or more times: "x" by default, or MULTIPLICATION
+;; SIGN (U+00D7) under -n/--unicode-minus.
+(define (times-glyph)
+  (if *unicode-minus* "×" "x"))
+
+;; item's name, with its trimmed `subject` after ": " if it has one:
+;; the packed name ("Own a Big Mecha: FV2021 Coleopteran") a file
+;; without `subject` holds in `name`.
+(define (name-with-subject item)
+  (let ((name    (must-exist "name" item))
+        (subject (assoc "subject" item)))
+    (if subject
+        (string-append name ": " (string-trim-both (yaml-scalar->string
+                                                    (cdr subject))))
+        name)))
+
+(define (yaml-scalar? x)
+  (or (string? x) (number? x) (boolean? x)))
+
+(define (yaml-scalar->string x)
+  (cond ((string? x) x)
+        ((number? x) (number->string x))
+        ((eq? x #t) "true")
+        ((eq? x #f) "false")
+        (else (error "not a scalar" x))))
+
+;; A decoded YAML mapping: an alist with string keys.  (A sequence of
+;; names decodes to a list of strings instead.)
+(define (yaml-mapping? x)
+  (and (pair? x) (list? x)
+       (every (lambda (p) (and (pair? p) (string? (car p)))) x)))
+
+;; item's key, which must be a sequence if it is there; #f if it isn't.
+(define (sequence-field item key)
+  (let ((found (assoc key item)))
+    (cond ((not found) #f)
+          ((list? (cdr found)) (cdr found))
+          (else (error (show #f (written key) ": not a sequence")
+                       (cdr found))))))
+
+;; Whether item's `overrides:` lists key.  The list must be a sequence
+;; of names, each one of allowed: a misspelt name would otherwise
+;; silently drop a mark.
+(define (overridden? item key allowed)
+  (let ((overrides (sequence-field item "overrides")))
+    (when overrides
+      (for-each (lambda (o)
+                  (unless (string? o)
+                    (error "an override is not a key name" o))
+                  (unless (member o allowed)
+                    (error (show #f (written o) " is not one of "
+                                 (string-join allowed ", ")))))
+                overrides))
+    (and overrides (member key overrides) #t)))
+
+;; override-mark if item's key is overridden, else "".
+(define (override-mark-for item key allowed)
+  (if (overridden? item key allowed) override-mark ""))
+
+;; An item of a Weapon Attack's `abilities` or `disabilities`, or of
+;; an attribute's `choices`: a name, or a mapping of `name`,
+;; `counts-as` (a positive count, printed as "xN" when 2 or more) and,
+;; but for a choice, `detail` (printed in brackets).
+(define (format-item item detail-allowed?)
+  (cond ((yaml-scalar? item) (string-trim-both (yaml-scalar->string item)))
+        ((yaml-mapping? item)
+         (let* ((name      (string-trim-both
+                            (yaml-scalar->string (must-exist "name" item))))
+                (counts-as (assoc "counts-as" item))
+                (counts-as (if counts-as (cdr counts-as) 1))
+                (detail    (assoc "detail" item)))
+           (unless (and (integer? counts-as) (>= counts-as 1))
+             (error "counts-as must be positive" item))
+           (string-append
+            name
+            (if (>= counts-as 2)
+                (string-append " " (times-glyph) (number->string counts-as))
+                "")
+            (if (and detail-allowed? detail)
+                (string-append " [" (string-trim-both
+                                     (yaml-scalar->string (cdr detail)))
+                               "]")
+                ""))))
+        (else (error "not a name or a mapping" item))))
+
+(define (format-items items detail-allowed?)
+  (if items
+      (map (lambda (item) (format-item item detail-allowed?)) items)
+      '()))
+
+;; A Weapon Attack's structured keys, as the book records an attack
+;; (p. 92): its Abilities, its Disabilities, "Different Gunner", then
+;; "N Damage" (with mark after N); "" if it has none of them.
+(define (weapon-part item mark)
+  (let ((damage (assoc "damage" item)))
+    (string-join
+     (append (format-items (sequence-field item "abilities") #t)
+             (format-items (sequence-field item "disabilities") #t)
+             (if (eq? (may-exist "different-gunner" item) #t)
+                 '("Different Gunner")
+                 '())
+             (if damage
+                 (list (show #f (displayed (cdr damage)) mark " Damage"))
+                 '()))
+     ", ")))
+
+(define attribute-overrides '("points" "damage"))
+
+;; attribute's details for its description, or #f; marked? puts
+;; override-mark after an overridden damage (the terse and grid
+;; formats).
+(define (attribute-details attribute marked?)
+  (let* ((details (may-exist "details" attribute))
+         (details (if details (string-trim-both details) details))
+         (mark    (override-mark-for attribute "damage" attribute-overrides)))
+    (make-attribute-details (weapon-part attribute (if marked? mark ""))
+                            details
+                            (may-exist "enhancements" attribute)
+                            (may-exist "limiters" attribute)
+                            (may-exist "elements" attribute)
+                            (sequence-field attribute "choices"))))
+
 (define (process-stat stat)
   (dbg (dfmt "process-stat: " (pretty stat) nl))
   (let ((name   (must-exist "name" stat))
         (value  (must-exist "value" stat))
-        (points (must-exist "points" stat)))
-    (row3 value points name)
+        (points (must-exist "points" stat))
+        (mark   (override-mark-for stat "points" '("points"))))
+    (row3 value (show #f points mark) name)
     points))
 
 (define derived-abbreviations
@@ -315,8 +447,9 @@
                            (string-append name " ("
                                           (string-join alternatives ", ")
                                           ")")
-                           name)))
-    (row2 value description)))
+                           name))
+         (mark          (override-mark-for derived "value" '("value"))))
+    (row2 (show #f value mark) description)))
 
 (define (format-customizers items type)
   ;; Note that the Attack Helicopter, BESM 4E p. 217, shows enhancements
@@ -355,13 +488,20 @@
                   [_ (error 'format-customizers
                             "do not understand customizer" item)])))
 
-(define (make-attribute-details details enhancements limiters elements)
+(define (make-attribute-details weapon details enhancements limiters elements
+                                choices)
   (dbg (dfmt "make-attribute-details: details: " details
              " enhancements: " enhancements " limiters: " limiters nl))
   (let* ((details      (if details (list (string-trim-both details)) '()))
          (elements     (if elements
                            (list (string-join (sort elements string-ci<?) ", "))
                            '()))
+         ;; The choices are printed as the elements are, sorted.
+         (choices      (sort (format-items choices #f) string-ci<?))
+         (choices      (if (null? choices)
+                           '()
+                           (list (string-join choices ", "))))
+         (weapon       (if (string-null? weapon) '() (list weapon)))
          (enhancements (if (and enhancements (pair? enhancements))
                            (format-customizers enhancements 'enhancement)
                            '()))
@@ -372,7 +512,7 @@
          (joined       (if (null? sorted)
                            '()
                            (list (string-join sorted ", "))))
-         (result       (append elements joined details)))
+         (result       (append weapon elements choices joined details)))
     (dbg (dfmt "enhancements: " (pretty enhancements) nl)
          (dfmt "limiters: " (pretty limiters) nl)
          (dfmt "partial: " (pretty partial) nl)
@@ -386,26 +526,23 @@
 (define (process-attribute attribute)
   (dbg (dfmt "process-attribute: " (pretty attribute) nl))
   ;; returns the cost of the attribute
-  (let* ((name         (must-exist "name" attribute))
+  (let* ((name         (name-with-subject attribute))
          (level        (must-exist "level" attribute))
          (points       (must-exist "points" attribute))
-         (details      (may-exist  "details" attribute))
-         (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
          (level        (if effective (show #f level " (" effective ")") level))
-         (enhancements (may-exist  "enhancements" attribute))
-         (limiters     (may-exist  "limiters" attribute))
-         (elements     (may-exist  "elements" attribute))
-         (details      (make-attribute-details details enhancements limiters
-                                               elements))
+         (mark         (override-mark-for attribute "points"
+                                          attribute-overrides))
+         (details      (attribute-details attribute #t))
          (description (if details (show #f name " (" details ")") name)))
-    (row3 level points description)
+    (row3 level (show #f points mark) description)
     points))
 
 (define (process-defect defect)
   (dbg (dfmt "process-defect: " (pretty defect) nl))
   ;; Returns the cost of the defect
-  (let* ((name        (must-exist "name" defect))
+  (let* ((name        (name-with-subject defect))
+         (mark        (override-mark-for defect "points" '("points")))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details))
@@ -414,7 +551,7 @@
     (dbg (dfmt "process-defect: before row3" nl))
     ;; Defect points are negative, but in rst that starts an itemized list,
     ;; so we put a backslash before them to quote them.
-    (row3 "" (string-append "\\" (negative-number->string points)) description)
+    (row3 "" (string-append "\\" (negative-number->string points) mark) description)
     (dbg (dfmt "process-defect: after row3" nl))
     points))
 
@@ -422,6 +559,7 @@
   (dbg (dfmt "process-skill: " (pretty skill) nl))
   ;; Returns the cost of the skill.
   (let* ((name            (must-exist "name" skill))
+         (mark            (override-mark-for skill "points" '("points")))
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill))
@@ -431,13 +569,17 @@
                                              (string-join specialisations ", ")
                                              ")")
                                             ""))))
-    (row3 level points description)
+    (row3 level (show #f points mark) description)
     points))
 
 (define (name-ci<? a b)
   (let ((a-name (must-exist "name" a))
         (b-name (must-exist "name" b)))
     (string-ci<? a-name b-name)))
+
+;; Attributes and defects sort by their names with their subjects.
+(define (name-subject-ci<? a b)
+  (string-ci<? (name-with-subject a) (name-with-subject b)))
 
 (define (process-entity entity entity-no)
   (dbg (dfmt "process-entity: " (pretty entity) nl))
@@ -497,7 +639,7 @@
             (text (hbolding "ATTRIBUTE")))
       (headsep3)
       (set! attributes-total
-        (loop for attribute in (sort attributes name-ci<?)
+        (loop for attribute in (sort attributes name-subject-ci<?)
               sum (process-attribute attribute)
               do (sep3)))
       (when *show-subtotals*
@@ -512,7 +654,7 @@
       (row3 "" (text (hbolding "POINTS")) (text (hbolding "DEFECT")))
       (headsep3)
       (set! defects-total 
-        (loop for defect in (sort defects name-ci<?)
+        (loop for defect in (sort defects name-subject-ci<?)
               sum (process-defect defect)
               do (sep3)))
       (when *show-subtotals*
@@ -578,7 +720,8 @@
 
 (define (process-stat-terse stat)
   (show #t (must-exist "name" stat) " " (must-exist "value" stat)
-        " (" (label-points (must-exist "points" stat))  ")"))
+        " (" (label-points (must-exist "points" stat)
+                          (override-mark-for stat "points" '("points")))  ")"))
 
 (define (process-derived-terse derived)
   (dbg (dfmt "process-derived-terse: " (pretty derived) nl))
@@ -591,44 +734,44 @@
                                            (string-join alternatives ", ")
                                            ")")
                             #f)))
-    (show #t name " " (displayed value) (if alternatives alternatives ""))))
+    (show #t name " " (displayed value)
+          (override-mark-for derived "value" '("value"))
+          (if alternatives alternatives ""))))
 
 (define (process-attribute-terse attribute)
   (dbg (dfmt "process-attribute-terse: " (pretty attribute) nl))
   ;; returns the cost of the attribute
-  (let* ((name         (must-exist "name" attribute))
+  (let* ((name         (name-with-subject attribute))
          (level        (must-exist "level" attribute))
          (points       (must-exist "points" attribute))
-         (details      (may-exist  "details" attribute))
-         (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
          (level        (if effective (show #f level " (" effective ")") level))
-         (enhancements (may-exist  "enhancements" attribute))
-         (limiters     (may-exist  "limiters" attribute))
-         (elements     (may-exist  "elements" attribute))
-         (details      (make-attribute-details details enhancements limiters
-                                               elements)))
+         (mark         (override-mark-for attribute "points"
+                                          attribute-overrides))
+         (details      (attribute-details attribute #t)))
     (show #t (emphasizing name
                           (if *em-dash* " — " " ")
                           (if *level* "Level " "") level) " ("
           (if details (string-append details ". ") "")
-          (label-points points) ")")))
+          (label-points points mark) ")")))
 
 (define (process-defect-terse defect)
   (dbg (dfmt "process-defect-terse: " (pretty defect) nl))
   ;; Returns the cost of the defect
-  (let* ((name        (must-exist "name" defect))
+  (let* ((name        (name-with-subject defect))
+         (mark        (override-mark-for defect "points" '("points")))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
     (show #t (emphasizing name) " ("
           (if details (string-append details ". ") "")
-          (label-points points) ")")))
+          (label-points points mark) ")")))
 
 (define (process-skill-terse skill)
   (dbg (dfmt "process-skill-terse: " (pretty skill) nl))
   ;; Returns the cost of the skill.
   (let* ((name            (must-exist "name" skill))
+         (mark            (override-mark-for skill "points" '("points")))
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
@@ -638,7 +781,7 @@
           (if specialisations
               (string-append (string-join specialisations ", ") ". ")
               "")
-         (displayed points) " SP)")))
+         (displayed points) mark " SP)")))
 
 (define (process-entity-terse entity entity-no)
   (dbg (dfmt "process-entity-terse: " (pretty entity) nl))
@@ -709,7 +852,7 @@
       (when *show-subtotals*
         (show #t " (" (label-points attributes-total) ")"))
       (show #t " — " nl)
-      (loop for attribute in (sort attributes name-ci<?)
+      (loop for attribute in (sort attributes name-subject-ci<?)
             for i from 1
             when (> i 1) do (show #t ", ")
             do (process-attribute-terse attribute))
@@ -722,7 +865,7 @@
       (when *show-subtotals*
         (show #t " (" (label-points defects-total) ")"))
       (show #t " — " nl)
-      (loop for defect in (sort defects name-ci<?)
+      (loop for defect in (sort defects name-subject-ci<?)
             for i from 1
             when (> i 1) do (show #t ", ")
             do (process-defect-terse defect))
@@ -757,7 +900,8 @@
 
 (define (process-stat-hmm stat)
   (show #t (must-exist "name" stat) " " (must-exist "value" stat)
-        " (" (label-points (must-exist "points" stat))  ")"))
+        " (" (label-points (begin (overridden? stat "points" '("points"))
+                             (must-exist "points" stat)))  ")"))
 
 (define (process-derived-hmm derived)
   (dbg (dfmt "process-derived-hmm: " (pretty derived) nl))
@@ -770,23 +914,20 @@
                                            (string-join alternatives ", ")
                                            ")")
                             #f)))
+    (overridden? derived "value" '("value"))
     (show #t name " " (displayed value) (if alternatives alternatives ""))))
 
 (define (process-attribute-hmm attribute)
   (dbg (dfmt "process-attribute-hmm: " (pretty attribute) nl))
   ;; returns the cost of the attribute
-  (let* ((name         (must-exist "name" attribute))
+  (let* ((name         (name-with-subject attribute))
          (level        (must-exist "level" attribute))
          (points       (must-exist "points" attribute))
-         (details      (may-exist  "details" attribute))
-         (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
          (level        (if effective (show #f level " (" effective ")") level))
-         (enhancements (may-exist  "enhancements" attribute))
-         (limiters     (may-exist  "limiters" attribute))
-         (elements     (may-exist  "elements" attribute))
-         (details      (make-attribute-details details enhancements limiters
-                                               elements)))
+         (mark         (override-mark-for attribute "points"
+                                          attribute-overrides))
+         (details      (attribute-details attribute #f)))
     (show #t (emphasizing name
                           (if *em-dash* " — " " ")
                           (if *level* "Level " "") level) " ("
@@ -796,7 +937,8 @@
 (define (process-defect-hmm defect)
   (dbg (dfmt "process-defect-hmm: " (pretty defect) nl))
   ;; Returns the cost of the defect
-  (let* ((name        (must-exist "name" defect))
+  (let* ((name        (name-with-subject defect))
+         (mark        (override-mark-for defect "points" '("points")))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details)))
@@ -808,6 +950,7 @@
   (dbg (dfmt "process-skill-hmm: " (pretty skill) nl))
   ;; Returns the cost of the skill.
   (let* ((name            (must-exist "name" skill))
+         (mark            (override-mark-for skill "points" '("points")))
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill)))
@@ -899,7 +1042,7 @@
           (show #t nl)
           (depth+
             (show #t (indent))
-            (loop for attribute in (sort attributes name-ci<?)
+            (loop for attribute in (sort attributes name-subject-ci<?)
                   for i from 1
                   when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-attribute-hmm attribute))
@@ -916,7 +1059,7 @@
           (show #t nl)
           (depth+
             (show #t (indent))
-            (loop for defect in (sort defects name-ci<?)
+            (loop for defect in (sort defects name-subject-ci<?)
                   for i from 1
                   when (> i 1) do (show #t (if *hmm-separate* (each nl (indent)) ", "))
                   do (process-defect-hmm defect))
@@ -966,6 +1109,7 @@
   (let ((name   (must-exist "name" stat))
         (value  (must-exist "value" stat))
         (points (must-exist "points" stat)))
+    (overridden? stat "points" '("points"))
     (show #t *raw-prefix* value "#" points "#" name nl)
     points))
 
@@ -982,6 +1126,7 @@
                                            (string-join alternatives ", ")
                                            ")")
                             name)))
+    (overridden? derived "value" '("value"))
     (show #t *raw-prefix* value "#T{" nl
           *raw-prefix* description nl
           *raw-prefix* "T}" nl)))
@@ -989,18 +1134,14 @@
 (define (process-attribute-raw-ms attribute)
   (dbg (dfmt "process-attribute-raw-ms: " (pretty attribute) nl))
   ;; returns the cost of the attribute
-  (let* ((name         (must-exist "name" attribute))
+  (let* ((name         (name-with-subject attribute))
          (level        (must-exist "level" attribute))
          (points       (must-exist "points" attribute))
-         (details      (may-exist  "details" attribute))
-         (details      (if details (string-trim-both details) details))
          (effective    (may-exist  "effective" attribute))
          (level        (if effective (show #f level " (" effective ")") level))
-         (enhancements (may-exist  "enhancements" attribute))
-         (limiters     (may-exist  "limiters" attribute))
-         (elements     (may-exist  "elements" attribute))
-         (details      (make-attribute-details details enhancements limiters
-                                               elements))
+         (mark         (override-mark-for attribute "points"
+                                          attribute-overrides))
+         (details      (attribute-details attribute #f))
          (description (if details (show #f name " ("
                                         (space-to-newline details) ")") name)))
     (show #t *raw-prefix* level "#" points "#T{" nl
@@ -1011,7 +1152,8 @@
 (define (process-defect-raw-ms defect)
   (dbg (dfmt "process-defect-raw-ms: " (pretty defect) nl))
   ;; Returns the cost of the defect
-  (let* ((name        (must-exist "name" defect))
+  (let* ((name        (name-with-subject defect))
+         (mark        (override-mark-for defect "points" '("points")))
          (points      (must-exist "points" defect))
          (details     (may-exist  "details" defect))
          (details     (if details (string-trim-both details) details))
@@ -1027,6 +1169,7 @@
   (dbg (dfmt "process-skill-raw-ms: " (pretty skill) nl))
   ;; Returns the cost of the skill.
   (let* ((name            (must-exist "name" skill))
+         (mark            (override-mark-for skill "points" '("points")))
          (level           (must-exist "level" skill))
          (points          (must-exist "points" skill))
          (specialisations (may-exist "specialisations" skill))
@@ -1120,7 +1263,7 @@
       (show #t *raw-prefix* (tbold "LEVEL") "#" (tbold "POINTS") "#"
             (tbold "ATTRIBUTE") nl)
       (set! attributes-total
-        (loop for attribute in (sort attributes name-ci<?)
+        (loop for attribute in (sort attributes name-subject-ci<?)
               sum (process-attribute-raw-ms attribute)))
       (when *show-subtotals*
         (show #t *raw-prefix* "#" (tbold (number->string attributes-total)) "#" 
@@ -1139,7 +1282,7 @@
             (tbold "POINTS") "#"
             (tbold "DEFECT") nl)
       (set! defects-total 
-        (loop for defect in (sort defects name-ci<?)
+        (loop for defect in (sort defects name-subject-ci<?)
               sum (process-defect-raw-ms defect)))
       (when *show-subtotals*
         (show #t *raw-prefix* "#" (tbold (points->string defects-total)) "#"

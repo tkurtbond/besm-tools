@@ -44,6 +44,26 @@ ports: ``composite-2e``, ``composite-multi-doc-2e``, ``sections-2e``,
 ``enyon-boase-2e`` and ``FV2021-Coleopteran-2e``, which all four have,
 the 2E test data is the same here and there, apart from comments.
 
+``keys-ext-2e``, ``composite-ext-2e`` and ``enyon-boase-ext-2e`` are
+besm2_fmt's fixtures for the optional keys added to the YAML format
+(``subject``, ``abilities``, ``disabilities``, ``different-gunner``,
+``damage``, ``choices``, ``overrides``, and the ignored ``level`` on a
+defect, ``primary`` and ``creation``).  ``test-data/bad/`` holds its two
+bad-input fixtures for them, ``bad-overrides.yaml`` and
+``bad-weapon.yaml``.  They are in a directory of their own so that the
+``%-2e`` rules of the GNUmakefile leave them out.
+
+``make compare-besm2_fmt`` runs ``compare-besm2_fmt.sh``.  It checks
+the output of :app:`besm2-rst`, :app:`besm2-rst-f`, :app:`besm2-rst-e`
+and :app:`besm2-rst-f-e` byte for byte against besm2_fmt's golden
+files.  :app:`besm2-rst` and :app:`besm2-rst-e` are also run with
+``-f``.  ``BESM2_FMT`` names besm2_fmt's directory, by default
+``~/Repos/RPG/Tools/besm2_fmt``.  The check covers every case in its
+``test/golden.cases`` that reads one file and writes to standard
+output.  For the bad-input files only standard output is compared,
+since the error messages differ.  ``BESM2_FMT_GOLDENS`` in the
+GNUmakefile lists the files it checks.
+
 besm2_fmt is the reference for those golden tests, and it departs from
 :app:`besm2-rst` on purpose in a few places (its Oberon-2 port's
 ``ADA-DIFFERENCES.md``, section 4, and section 2 for its own defects).

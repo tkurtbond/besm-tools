@@ -81,6 +81,7 @@
 (import bindings)
 (import (schemepunk show))
 (import loop)
+(import (srfi 1))
 (import (srfi 152))
 (import yaml)
 (import (rename (only (slibfyaml scheme) load-port) (load-port fyaml-load)))
@@ -119,6 +120,115 @@
         result)))
 
 ;;; ------------------------------------------------------------------
+;;; The keys besm2_cg_po's PLAN.md (A4) adds, all optional, as
+;;; besm2_fmt prints them (override-mark and times-glyph are
+;;; besm-entities').
+;;; ------------------------------------------------------------------
+
+;; item's name, with its trimmed `subject` after ": " if it has one:
+;; the packed name ("Own a Big Mecha: FV2021 Coleopteran") a file
+;; without `subject` holds in `name`.
+(define (name-with-subject item)
+  (let ((name    (must-exist "name" item))
+        (subject (assoc "subject" item)))
+    (if subject
+        (string-append name ": " (string-trim-both (yaml-scalar->string
+                                                    (cdr subject))))
+        name)))
+
+(define (yaml-scalar? x)
+  (or (string? x) (number? x) (boolean? x)))
+
+(define (yaml-scalar->string x)
+  (cond ((string? x) x)
+        ((number? x) (number->string x))
+        ((eq? x #t) "true")
+        ((eq? x #f) "false")
+        (else (error "not a scalar" x))))
+
+;; A decoded YAML mapping: an alist with string keys.  (A sequence of
+;; names decodes to a list of strings instead.)
+(define (yaml-mapping? x)
+  (and (pair? x) (list? x)
+       (every (lambda (p) (and (pair? p) (string? (car p)))) x)))
+
+;; item's key, which must be a sequence if it is there; #f if it isn't.
+(define (sequence-field item key)
+  (let ((found (assoc key item)))
+    (cond ((not found) #f)
+          ((list? (cdr found)) (cdr found))
+          (else (error (show #f (written key) ": not a sequence")
+                       (cdr found))))))
+
+;; Whether item's `overrides:` lists key.  The list must be a sequence
+;; of names, each one of allowed: a misspelt name would otherwise
+;; silently drop a mark.
+(define (overridden? item key allowed)
+  (let ((overrides (sequence-field item "overrides")))
+    (when overrides
+      (for-each (lambda (o)
+                  (unless (string? o)
+                    (error "an override is not a key name" o))
+                  (unless (member o allowed)
+                    (error (show #f (written o) " is not one of "
+                                 (string-join allowed ", ")))))
+                overrides))
+    (and overrides (member key overrides) #t)))
+
+;; override-mark if item's key is overridden, else "".
+(define (override-mark-for item key allowed)
+  (if (overridden? item key allowed) override-mark ""))
+
+;; An item of a Weapon Attack's `abilities` or `disabilities`, or of
+;; an attribute's `choices`: a name, or a mapping of `name`,
+;; `counts-as` (a positive count, printed as "xN" when 2 or more) and,
+;; but for a choice, `detail` (printed in brackets).
+(define (format-item item detail-allowed?)
+  (cond ((yaml-scalar? item) (string-trim-both (yaml-scalar->string item)))
+        ((yaml-mapping? item)
+         (let* ((name      (string-trim-both
+                            (yaml-scalar->string (must-exist "name" item))))
+                (counts-as (assoc "counts-as" item))
+                (counts-as (if counts-as (cdr counts-as) 1))
+                (detail    (assoc "detail" item)))
+           (unless (and (integer? counts-as) (>= counts-as 1))
+             (error "counts-as must be positive" item))
+           (string-append
+            name
+            (if (>= counts-as 2)
+                (string-append " " (times-glyph) (number->string counts-as))
+                "")
+            (if (and detail-allowed? detail)
+                (string-append " [" (string-trim-both
+                                     (yaml-scalar->string (cdr detail)))
+                               "]")
+                ""))))
+        (else (error "not a name or a mapping" item))))
+
+(define (format-items items detail-allowed?)
+  (if items
+      (map (lambda (item) (format-item item detail-allowed?)) items)
+      '()))
+
+;; A Weapon Attack's structured keys, as the book records an attack
+;; (p. 92): its Abilities, its Disabilities, "Different Gunner", then
+;; "N Damage" (with mark after N); "" if it has none of them.
+(define (weapon-part item mark)
+  (let ((damage (assoc "damage" item)))
+    (string-join
+     (append (format-items (sequence-field item "abilities") #t)
+             (format-items (sequence-field item "disabilities") #t)
+             (if (eq? (may-exist "different-gunner" item) #t)
+                 '("Different Gunner")
+                 '())
+             (if damage
+                 (list (show #f (displayed (cdr damage)) mark " Damage"))
+                 '()))
+     ", ")))
+
+(define attribute-overrides '("points" "damage"))
+
+;;; ------------------------------------------------------------------
 ;;; load-entity: build besm-entities' record types from a raw alist. All
 ;;; of the actual formatting is in besm-entities.scm; this only decodes.
 ;;; ------------------------------------------------------------------
@@ -126,15 +236,17 @@
 (define (load-stat stat)
   (make-stat (must-exist "name" stat)
              (must-exist "value" stat)
-             (must-exist "points" stat)))
+             (must-exist "points" stat)
+             (override-mark-for stat "points" '("points"))))
 
 (define (load-derived derived)
   (make-derived (must-exist "name" derived)
                 (must-exist "value" derived)
-                (may-exist "alternatives" derived)))
+                (may-exist "alternatives" derived)
+                (override-mark-for derived "value" '("value"))))
 
 (define (load-attribute attribute)
-  (let* ((name         (must-exist "name" attribute))
+  (let* ((name         (name-with-subject attribute))
          (level        (must-exist "level" attribute))
          (points       (must-exist "points" attribute))
          (details      (may-exist "details" attribute))
@@ -144,22 +256,34 @@
          (enhancements (may-exist "enhancements" attribute))
          (limiters     (may-exist "limiters" attribute))
          (elements     (may-exist "elements" attribute))
-         (details      (make-attribute-details details enhancements limiters
-                                               elements)))
-    (make-attribute name level points details)))
+         (choices      (format-items (sequence-field attribute "choices") #f))
+         (damage-mark  (override-mark-for attribute "damage"
+                                          attribute-overrides))
+         (points-mark  (override-mark-for attribute "points"
+                                          attribute-overrides)))
+    (make-attribute name level points
+                    (make-attribute-details (weapon-part attribute "")
+                                            details enhancements limiters
+                                            elements choices)
+                    (make-attribute-details (weapon-part attribute damage-mark)
+                                            details enhancements limiters
+                                            elements choices)
+                    points-mark)))
 
 (define (load-defect defect)
-  (let* ((name    (must-exist "name" defect))
+  (let* ((name    (name-with-subject defect))
          (points  (must-exist "points" defect))
          (details (may-exist "details" defect))
          (details (if details (string-trim-both details) details)))
-    (make-defect name points details)))
+    (make-defect name points details
+                 (override-mark-for defect "points" '("points")))))
 
 (define (load-skill skill)
   (make-skill (must-exist "name" skill)
               (must-exist "level" skill)
               (must-exist "points" skill)
-              (may-exist "specialisations" skill)))
+              (may-exist "specialisations" skill)
+              (override-mark-for skill "points" '("points"))))
 
 (define (load-entity entity)
   (let* ((stats       (may-exist "stats" entity))

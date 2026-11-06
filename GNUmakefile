@@ -379,6 +379,28 @@ compare-entitytree: entitytree
 	done; \
 	exit $$status
 
+# Compare all six besm2-rst variants (besm2-rst, besm2-rst -f,
+# besm2-rst-f, besm2-rst-e, besm2-rst-e -f, besm2-rst-f-e) with the Ada
+# besm2_fmt's golden files, byte for byte, in every case of its
+# test/golden.cases that reads one file: the fixtures copied from
+# besm2_fmt (README.rst, "Test data"), including the -ext ones with
+# besm2_cg_po's YAML keys and the bad input in test-data/bad/.  The
+# programs' own output is compared; besm2_fmt need not be built.
+BESM2_FMT ?= $(HOME)/Repos/RPG/Tools/besm2_fmt
+BESM2_FMT_GOLDENS=\
+	composite-2e=test-data/composite-2e.yaml \
+	enyon-boase-2e=test-data/enyon-boase-2e.yaml \
+	sections-2e=test-data/sections-2e.yaml \
+	FV2021-Coleopteran-2e=test-data/FV2021-Coleopteran-2e.yaml \
+	notes-2e=test-data/notes-2e.yaml \
+	keys-ext=test-data/keys-ext-2e.yaml \
+	composite-ext=test-data/composite-ext-2e.yaml \
+	enyon-boase-ext=test-data/enyon-boase-ext-2e.yaml \
+	bad-overrides=test-data/bad/bad-overrides.yaml \
+	bad-weapon=test-data/bad/bad-weapon.yaml
+compare-besm2_fmt: build/besm2-rst build/besm2-rst-f build/besm2-rst-e build/besm2-rst-f-e
+	./compare-besm2_fmt.sh $(BESM2_FMT) $(BESM2_FMT_GOLDENS)
+
 # Convenience alias for the log below -- kept as a separate name (with
 # no recipe of its own) so "make benchmark-fyaml" still works as
 # before; it just now only reruns build/benchmark-fyaml.out's recipe

@@ -109,13 +109,16 @@
 (module besm-entities
   (
    ;; Records.
-   make-stat stat? stat-name stat-value stat-points
+   make-stat stat? stat-name stat-value stat-points stat-points-mark
    make-derived derived? derived-name derived-value derived-alternatives
+   derived-value-mark
    make-attribute attribute? attribute-name attribute-level
-   attribute-points attribute-details
+   attribute-points attribute-details attribute-marked-details
+   attribute-points-mark
    make-defect defect? defect-name defect-points defect-details
+   defect-points-mark
    make-skill skill? skill-name skill-level skill-points
-   skill-specialisations
+   skill-specialisations skill-points-mark
    make-entity entity? entity-name entity-tagline entity-description
    entity-size entity-mecha? entity-stats entity-derived
    entity-attributes entity-defects entity-skills
@@ -124,6 +127,7 @@
 
    ;; Loader helpers shared by both programs' load-entity.
    make-attribute-details total-points-of sort-by-name-ci
+   override-mark times-glyph
 
    ;; Debug/error helpers.
    dbg dfmt die *debugging*
@@ -217,49 +221,63 @@
 ;;; Records.
 ;;; ------------------------------------------------------------------
 
+
+;; The *-mark fields (besm2_cg_po's PLAN.md, A4) are override-mark when
+;; the number's key is in the item's `overrides:`, else "": the terse
+;; and grid formats print them after the number, the others don't.
+
 (define-record-type <stat>
-  (make-stat name value points)
+  (make-stat name value points points-mark)
   stat?
   (name stat-name)
   (value stat-value)
-  (points stat-points))
+  (points stat-points)
+  (points-mark stat-points-mark))
 
 ;; alternatives: #f or a list of strings. name is the RAW YAML name (e.g.
 ;; "ACV") -- see the header comment on derived-abbreviations below for why
 ;; the abbreviation expansion is not done here.
 (define-record-type <derived>
-  (make-derived name value alternatives)
+  (make-derived name value alternatives value-mark)
   derived?
   (name derived-name)
   (value derived-value)
-  (alternatives derived-alternatives))
+  (alternatives derived-alternatives)
+  (value-mark derived-value-mark))
 
-;; level already has any "effective" value folded in; details is already
-;; the finished result of make-attribute-details (#f or a string).
+;; name has its `subject`, if any, after ": ".  level already has any
+;; "effective" value folded in; details is already the finished result
+;; of make-attribute-details (#f or a string), and marked-details the
+;; same with override-mark after an overridden damage.
 (define-record-type <attribute>
-  (make-attribute name level points details)
+  (make-attribute name level points details marked-details points-mark)
   attribute?
   (name attribute-name)
   (level attribute-level)
   (points attribute-points)
-  (details attribute-details))
+  (details attribute-details)
+  (marked-details attribute-marked-details)
+  (points-mark attribute-points-mark))
 
-;; details is already string-trim-both'd; #f if absent.
+;; name has its `subject`, if any, after ": ".  details is already
+;; string-trim-both'd; #f if absent.
 (define-record-type <defect>
-  (make-defect name points details)
+  (make-defect name points details points-mark)
   defect?
   (name defect-name)
   (points defect-points)
-  (details defect-details))
+  (details defect-details)
+  (points-mark defect-points-mark))
 
 ;; specialisations: #f or a list of strings.
 (define-record-type <skill>
-  (make-skill name level points specialisations)
+  (make-skill name level points specialisations points-mark)
   skill?
   (name skill-name)
   (level skill-level)
   (points skill-points)
-  (specialisations skill-specialisations))
+  (specialisations skill-specialisations)
+  (points-mark skill-points-mark))
 
 ;; name/tagline/description/size: #f if the corresponding YAML key is
 ;; absent. tagline is already string-trim-both'd. stats/derived are #f or
@@ -328,8 +346,8 @@
 ;;; from *-parameters now being called rather than referenced bare).
 ;;; ------------------------------------------------------------------
 
-(define (label-points points)
-  (show #f (abs points) (if (mecha?)
+(define (label-points points #!optional (mark ""))
+  (show #f (abs points) mark (if (mecha?)
                             (if (< points 0) " MBP" " MP")
                             (if (< points 0) " BP" " CP"))))
 
@@ -543,13 +561,34 @@
                   [_ (error 'format-customizers
                             "do not understand customizer" item)])))
 
-(define (make-attribute-details details enhancements limiters elements)
+;; What follows an overridden number (`overrides:`, besm2_cg_po's
+;; PLAN.md, A4) in the terse and grid formats: "*", escaped so that
+;; reST doesn't read it as the start of emphasis.
+(define override-mark "\\*")
+
+;; The sign before a Weapon Attack Ability or Disability's count when
+;; it is taken two or more times: "x" by default, or MULTIPLICATION
+;; SIGN (U+00D7) under -n/--unicode-minus.
+(define (times-glyph)
+  (if (*unicode-minus*) "×" "x"))
+
+;; weapon is a Weapon Attack's abilities, disabilities, "Different
+;; Gunner" and damage, already joined ("" if none); choices is the
+;; attribute's `choices`, already formatted, or '().
+(define (make-attribute-details weapon details enhancements limiters elements
+                                choices)
   (dbg (dfmt "make-attribute-details: details: " details
              " enhancements: " enhancements " limiters: " limiters nl))
   (let* ((details      (if details (list (string-trim-both details)) '()))
          (elements     (if elements
                            (list (string-join (sort elements string-ci<?) ", "))
                            '()))
+         ;; The choices are printed as the elements are, sorted.
+         (choices      (sort choices string-ci<?))
+         (choices      (if (null? choices)
+                           '()
+                           (list (string-join choices ", "))))
+         (weapon       (if (string-null? weapon) '() (list weapon)))
          (enhancements (if (and enhancements (pair? enhancements))
                            (format-customizers enhancements 'enhancement)
                            '()))
@@ -560,7 +599,7 @@
          (joined       (if (null? sorted)
                            '()
                            (list (string-join sorted ", "))))
-         (result       (append elements joined details)))
+         (result       (append weapon elements choices joined details)))
     (dbg (dfmt "enhancements: " (pretty enhancements) nl)
          (dfmt "limiters: " (pretty limiters) nl)
          (dfmt "partial: " (pretty partial) nl)
@@ -596,7 +635,8 @@
 
 (define (process-stat stat)
   (dbg (dfmt "process-stat: " (stat-name stat) nl))
-  (row3 (stat-value stat) (stat-points stat) (stat-name stat))
+  (row3 (stat-value stat) (show #f (stat-points stat) (stat-points-mark stat))
+        (stat-name stat))
   (stat-points stat))
 
 (define (process-derived derived)
@@ -609,16 +649,19 @@
                                           (string-join alternatives ", ")
                                           ")")
                            name)))
-    (row2 (derived-value derived) description)))
+    (row2 (show #f (derived-value derived) (derived-value-mark derived))
+          description)))
 
 (define (process-attribute attribute)
   (dbg (dfmt "process-attribute: " (attribute-name attribute) nl))
   ;; returns the cost of the attribute
-  (let* ((details     (attribute-details attribute))
+  (let* ((details     (attribute-marked-details attribute))
          (description (if details
                           (show #f (attribute-name attribute) " (" details ")")
                           (attribute-name attribute))))
-    (row3 (attribute-level attribute) (attribute-points attribute) description)
+    (row3 (attribute-level attribute)
+          (show #f (attribute-points attribute) (attribute-points-mark attribute))
+          description)
     (attribute-points attribute)))
 
 (define (process-defect defect)
@@ -630,7 +673,8 @@
                           (defect-name defect))))
     ;; Defect points are negative, but in rst that starts an itemized list,
     ;; so we put a backslash before them to quote them.
-    (row3 "" (string-append "\\" (negative-number->string (defect-points defect)))
+    (row3 "" (string-append "\\" (negative-number->string (defect-points defect))
+                            (defect-points-mark defect))
           description)
     (defect-points defect)))
 
@@ -643,7 +687,9 @@
                                     (string-append
                                      " (" (string-join specialisations ", ") ")")
                                     ""))))
-    (row3 (skill-level skill) (skill-points skill) description)
+    (row3 (skill-level skill)
+          (show #f (skill-points skill) (skill-points-mark skill))
+          description)
     (skill-points skill)))
 
 (define (process-entity entity entity-no)
@@ -747,7 +793,7 @@
 
 (define (process-stat-terse stat)
   (show #t (stat-name stat) " " (stat-value stat)
-        " (" (label-points (stat-points stat)) ")"))
+        " (" (label-points (stat-points stat) (stat-points-mark stat)) ")"))
 
 (define (process-derived-terse derived)
   (dbg (dfmt "process-derived-terse: " (derived-name derived) nl))
@@ -760,23 +806,25 @@
                                           ")")
                            #f)))
     (show #t (derived-name derived) " " (displayed (derived-value derived))
+          (derived-value-mark derived)
           (if alternatives alternatives ""))))
 
 (define (process-attribute-terse attribute)
   (dbg (dfmt "process-attribute-terse: " (attribute-name attribute) nl))
-  (let ((details (attribute-details attribute)))
+  (let ((details (attribute-marked-details attribute)))
     (show #t (emphasizing (attribute-name attribute)
                           (if (*em-dash*) " — " " ")
                           (if (*level*) "Level " "") (attribute-level attribute)) " ("
           (if details (string-append details ". ") "")
-          (label-points (attribute-points attribute)) ")")))
+          (label-points (attribute-points attribute)
+                        (attribute-points-mark attribute)) ")")))
 
 (define (process-defect-terse defect)
   (dbg (dfmt "process-defect-terse: " (defect-name defect) nl))
   (let ((details (defect-details defect)))
     (show #t (emphasizing (defect-name defect)) " ("
           (if details (string-append details ". ") "")
-          (label-points (defect-points defect)) ")")))
+          (label-points (defect-points defect) (defect-points-mark defect)) ")")))
 
 (define (process-skill-terse skill)
   (dbg (dfmt "process-skill-terse: " (skill-name skill) nl))
@@ -787,7 +835,7 @@
           (if specialisations
               (string-append (string-join specialisations ", ") ". ")
               "")
-         (displayed (skill-points skill)) " SP)")))
+         (displayed (skill-points skill)) (skill-points-mark skill) " SP)")))
 
 (define (process-entity-terse entity entity-no)
   (dbg (dfmt "process-entity-terse: " (or (entity-name entity) "(unnamed)") nl))
