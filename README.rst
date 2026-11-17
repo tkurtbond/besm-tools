@@ -97,5 +97,29 @@ round in besm2_fmt, which uses U+2212 by default):
     ``()`` (grid, raw ms) or a stray ``.`` before the points (terse,
     h-m-m); besm2_fmt leaves them out, as if absent (4.10).
 
+BESM and the rulebooks
+======================
+
+*Big Eyes, Small Mouth* and its supplements, such as *Big Robots, Cool
+Starships* (© 1999), are © Guardians of Order, Inc.; *Big Eyes, Small
+Mouth*, Second Edition Revised, is © 2002 Guardians of Order, Inc.
+*BESM* Fourth Edition is © 2020 White Wolf Entertainment AB. BESM and
+the Tri-Stat System now belong to Dyskami Publishing Company, whose
+Tri-Stat® System is a registered trademark. This project is not
+affiliated with or endorsed by any of them. Its programs format
+character files that you write, and hold no text from the rules.
+
+The files in ``test-data/`` are characters made for the tests, except
+for these:
+
+- The FV2021 Coleopteran mecha (``FV2021-Coleopteran-2e``,
+  ``FV2021-Coleopteran-4e`` and the ``composite`` files), converted
+  from a sample in *Big Robots, Cool Starships* so that the output can
+  be checked against it.  Its description is paraphrased.
+
+- The Android Battle Maid and the Battle Cabbit, sample characters
+  from *BESM* Fourth Edition (pp. 37 and 230), which give only their
+  names, numbers and short details, for the same purpose.
+
 .. _YAML: https://yaml.org/
 .. _reStructuredText: https://docutils.sourceforge.io/rst.html
